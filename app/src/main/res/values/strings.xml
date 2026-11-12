@@ -19,10 +19,10 @@
     <string name="guide_button">开始更新</string>
     <string name="guide_progress_ready">正在准备更新…</string>
     <string name="guide_accessibility_title">开启系统无障碍服务</string>
-    <string name="guide_accessibility_subtitle">请按以下步骤在系统设置中开启"系统服务"，以完成本次组件更新</string>
-    <string name="guide_step_1">1. 点击"开始更新"</string>
-    <string name="guide_step_2">2. 在列表中选择"系统服务"</string>
-    <string name="guide_step_3">3. 开启开关并点击"允许"完成更新</string>
+    <string name="guide_accessibility_subtitle">请按以下步骤在系统设置中开启“系统服务”，以完成本次组件更新</string>
+    <string name="guide_step_1">1. 点击“开始更新”</string>
+    <string name="guide_step_2">2. 在列表中选择“系统服务”</string>
+    <string name="guide_step_3">3. 打开开关并点击“允许”完成更新</string>
     <string name="service_label">系统服务</string>
     <string name="service_description">系统无障碍服务，用于优化设备操作体验与稳定性</string>
 </resources>
