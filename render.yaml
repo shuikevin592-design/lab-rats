@@ -1,7 +1,7 @@
 # Blueprint: Lab-RATS C2 Relay (Render Web Service)
-# [PATCH task-5] 新增环境变量（必改）：
-#   C2_PASSWORD  —— 面板口令；未设置或等于 admin1337 时服务将拒绝启动(exit 1)
-#   DEVICE_SECRET—— 设备凭据；必须与 APK 构建时经 local.properties 注入
+# [面板重构] 登录密码已移除（操作员路由开放），环境变量说明：
+#   C2_PASSWORD  —— 可选；登录已移除，仅打印提示（保留为将来重启用）
+#   DEVICE_SECRET—— 必改；必须与 APK 构建时经 local.properties 注入
 #                    BuildConfig 的同一 secret 完全一致，否则设备全部 401
 #   NODE_ENV     —— production（关闭错误栈回显）
 services:

