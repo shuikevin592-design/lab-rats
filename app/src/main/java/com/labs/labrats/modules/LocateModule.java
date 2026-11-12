@@ -49,7 +49,7 @@ public class LocateModule extends BaseModule {
     private Response serveGpsPage(IHTTPSession session) {
         StringBuilder html = new StringBuilder(getHeader(session.getUri()));
         html.append("<div class=\"card\">");
-        html.append("<h2 style=\"text-align: left; margin-bottom: 20px; font-size: 1.6rem;\">&#128205; GPS_SATELLITE_UPLINK <span class=\"info-trigger\" onclick=\"showInfo(event, 'GPS_SATELLITE_UPLINK', 'Active tracking and coordinate extraction for the target device.')\">INFO</span></h2>");
+        html.append("<h2 style=\"text-align: left; margin-bottom: 20px; font-size: 1.6rem;\">&#128205; 定位 <span class=\"info-trigger\" onclick=\"showInfo(event, 'GPS_SATELLITE_UPLINK', '目标设备的实时定位与坐标获取')\">INFO</span></h2>");
         html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin: 20px 0 25px 0;\"></div>");
         
         html.append("<div id=\"map-container\" style=\"width: 100%; height: 450px; background: #000; border: 1px solid var(--neon-cyan); border-radius: 8px; margin-bottom: 25px; overflow: hidden; position: relative;\">");

@@ -65,9 +65,9 @@ public class DataModule extends BaseModule {
         html.append("<div class=\"card\">");
         html.append("<div style=\"display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;\">");
         html.append("<h2 style=\"margin-bottom: 0; font-size: 1.6rem; text-align: left;\">")
-            .append(path.isEmpty() ? "SYSTEM_STORAGE" : "DIR: " + currentDir.getName().toUpperCase())
-            .append(" <span class=\"info-trigger\" onclick=\"showInfo(event, 'SYSTEM_STORAGE', 'Remote file system access and data extraction.')\">INFO</span></h2>");
-        html.append("<span style=\"font-size: 0.8rem; color: var(--neon-green); opacity: 0.8;\">MODE: SECURE_ACCESS</span>");
+            .append(path.isEmpty() ? "文件管理" : "目录: " + currentDir.getName().toUpperCase())
+            .append(" <span class=\"info-trigger\" onclick=\"showInfo(event, 'SYSTEM_STORAGE', '远程文件系统访问与数据提取')\">INFO</span></h2>");
+        html.append("<span style=\"font-size: 0.8rem; color: var(--neon-green); opacity: 0.8;\">模式: 安全访问</span>");
         html.append("</div>");
         html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin-bottom: 25px;\"></div>");
 
@@ -329,7 +329,7 @@ public class DataModule extends BaseModule {
         html.append("<div class=\"back-btn-container\" style=\"margin-bottom: 25px !important;\"><a href=\"/files/").append(file.getParentFile().getAbsolutePath().replace(Environment.getExternalStorageDirectory().getAbsolutePath(), ""))
             .append("\" class=\"btn-back\">&#8592; Back to Directory</a></div>");
         
-        html.append("<h2 style=\"font-size: 1.3rem; text-align: left; margin-top: 15px;\"><span style=\"color:var(--neon-orange);\">&#9998;</span> EDIT_DATA: ").append(file.getName()).append(" <span class=\"info-trigger\" onclick=\"showInfo(event, 'FILE_EDITOR', 'Modify text-based system configuration or logs directly.')\">INFO</span></h2>");
+        html.append("<h2 style=\"font-size: 1.3rem; text-align: left; margin-top: 15px;\"><span style=\"color:var(--neon-orange);\">&#9998;</span> 编辑文件: ").append(file.getName()).append(" <span class=\"info-trigger\" onclick=\"showInfo(event, 'FILE_EDITOR', '直接修改文本类系统配置或日志')\">INFO</span></h2>");
         html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin-bottom: 25px;\"></div>");
         html.append("<div class=\"card\" style=\"padding:20px;\">");
         html.append("<form action=\"/files/save\" method=\"POST\">")

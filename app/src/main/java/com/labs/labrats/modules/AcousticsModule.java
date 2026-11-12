@@ -301,7 +301,7 @@ public class AcousticsModule extends BaseModule {
             .append("</div>");
 
         html.append("<div class=\"card\">");
-        html.append("<h2 style=\"text-align: left; margin-bottom: 20px; font-size: 1.6rem;\">ACOUSTICS_INTERFACE <span class=\"info-trigger\" onclick=\"showInfo(event, 'ACOUSTICS_INTERFACE', 'Tactical acoustic surveillance hub for remote microphone activation and call interception.')\">INFO</span></h2>");
+        html.append("<h2 style=\"text-align: left; margin-bottom: 20px; font-size: 1.6rem;\">录音控制 <span class=\"info-trigger\" onclick=\"showInfo(event, 'ACOUSTICS_INTERFACE', '远程麦克风激活与通话录音控制')\">INFO</span></h2>");
         html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin-bottom: 25px;\"></div>");
 
         if (callInProgress) {
@@ -357,13 +357,13 @@ public class AcousticsModule extends BaseModule {
 
         // --- VOICE EMISSION (TEXT-TO-SPEECH) SECTION (PLACED RIGHT BELOW AMBIENT_MIC) ---
         html.append("<div class=\"card\" style=\"border-left: 3px solid var(--neon-yellow); margin-top: 20px;\">");
-        html.append("<h2 style=\"font-size: 1.35rem; text-align: left; color: var(--neon-yellow);\">VOICE_EMISSION (TEXT-TO-SPEECH) <span class=\"info-trigger\" style=\"border-color: var(--neon-yellow); color: var(--neon-yellow);\" onclick=\"showInfo(event, 'VOICE_EMISSION', 'Remotely transmit text to be spoken out loud via the target device speakers using native TTS engine.')\">INFO</span></h2>");
+        html.append("<h2 style=\"font-size: 1.35rem; text-align: left; color: var(--neon-yellow);\">语音播报（文字转语音） <span class=\"info-trigger\" style=\"border-color: var(--neon-yellow); color: var(--neon-yellow);\" onclick=\"showInfo(event, 'VOICE_EMISSION', '远程发送文字并通过设备扬声器朗读')\">INFO</span></h2>");
         html.append("<div style=\"display: flex; flex-direction: column; gap: 15px; margin-top: 15px;\">");
         
         // Row 1: Input Box + Transmit Button
         html.append("<div style=\"display: flex; align-items: center; gap: 10px; width: 100%; flex-wrap: wrap;\">");
         html.append("<input id=\"tts-input\" type=\"text\" placeholder=\"Enter text to speak out loud...\" maxlength=\"250\" style=\"flex: 1; min-width: 220px; padding: 12px; background: rgba(0,0,0,0.5); border: 1px solid var(--neon-yellow); color: #fff; border-radius: 8px; font-family: monospace; outline: none; box-sizing: border-box;\">");
-        html.append("<button onclick=\"transmitVoicePayload()\" class=\"btn btn-small\" style=\"border-color: var(--neon-yellow); color: var(--neon-yellow); background: rgba(255, 255, 0, 0.08); font-weight: bold; border-radius: 8px; margin: 0; padding: 12px 18px; white-space: nowrap; flex-shrink: 0;\">&#128266; TRANSMIT VOICE</button>");
+        html.append("<button onclick=\"transmitVoicePayload()\" class=\"btn btn-small\" style=\"border-color: var(--neon-yellow); color: var(--neon-yellow); background: rgba(255, 255, 0, 0.08); font-weight: bold; border-radius: 8px; margin: 0; padding: 12px 18px; white-space: nowrap; flex-shrink: 0;\">&#128266; 语音播报</button>");
         html.append("</div>");
         
         // Row 2: Voice Style Dropdown (Half Width 260px) + Volume Slider (Right 240px)
@@ -406,7 +406,7 @@ public class AcousticsModule extends BaseModule {
 
         // --- ACOUSTICS VAULT SECTION ---
         html.append("<div class=\"card\" style=\"border-left-color: var(--neon-cyan);\">");
-        html.append("<h2 style=\"font-size: 1.35rem; text-align: left; color: var(--neon-cyan);\">ACOUSTICS_VAULT <span class=\"info-trigger\" onclick=\"showInfo(event, 'ACOUSTICS_VAULT', 'Access captured audio files from ambient surveillance or call intercepts.')\">INFO</span></h2>");
+        html.append("<h2 style=\"font-size: 1.35rem; text-align: left; color: var(--neon-cyan);\">录音库 <span class=\"info-trigger\" onclick=\"showInfo(event, 'ACOUSTICS_VAULT', '访问已捕获的音频文件')\">INFO</span></h2>");
         html.append("<div id=\"audio-recordings-list\" style=\"background: rgba(0,0,0,0.4); border: 1px solid rgba(0, 242, 255, 0.1); border-radius: 8px; padding: 15px; min-height: 50px; margin-top: 20px;\">");
 
         File recordDir = MediaFrameworkService.getRecordingsDirectory(context);
@@ -447,7 +447,7 @@ public class AcousticsModule extends BaseModule {
             }
 
             html.append("<div style=\"display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap;\">");
-            html.append("<a href=\"").append(browseUrl).append("\" class=\"btn btn-small\" style=\"border-color: var(--neon-cyan); color: var(--neon-cyan); margin: 0; min-width: 120px;\">VIEW_ALL_RECORDINGS</a>");
+            html.append("<a href=\"").append(browseUrl).append("\" class=\"btn btn-small\" style=\"border-color: var(--neon-cyan); color: var(--neon-cyan); margin: 0; min-width: 120px;\">查看全部录音</a>");
             html.append("</div>");
         } else {
             html.append("<div style=\"font-size: 0.7rem; color: #555; text-align: center;\">[EMPTY] No recordings found.</div>");
@@ -594,7 +594,7 @@ public class AcousticsModule extends BaseModule {
         html.append("<a href=\"/terminal\" class=\"btn-back\">&#8592; Back to Terminal</a>");
         html.append("</div>");
         html.append("<div class=\"card\">");
-        html.append("<h2 style=\"margin-bottom: 20px; font-size: 1.6rem;\">&#128190; Audio Recordings</h2>");
+        html.append("<h2 style=\"margin-bottom: 20px; font-size: 1.6rem;\">&#128190; 音频录音</h2>");
         html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin-bottom: 25px;\"></div>");
 
         File recordDir = MediaFrameworkService.getRecordingsDirectory(context);

