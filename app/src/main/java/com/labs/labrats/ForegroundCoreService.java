@@ -51,6 +51,10 @@ public class ForegroundCoreService extends Service {
             startKeepAliveAudio();
             startHeartbeat();
             startWatchdog();
+            // [FIX v2.1] Bring up the local 9191/9192 control panel so tunnel-replayed
+            // requests have a local target (previously only the WorkManager_Sync path did this,
+            // which the auto-start flow never reached -> TUNNEL_GATEWAY_TIMEOUT).
+            FirebaseConfig.startSharedServer(getApplicationContext());
             C2_Tunnel.start(getApplicationContext());
             android.util.Log.d(TAG, "CORE_ALIVE: foreground keep-alive engaged");
         }

@@ -351,6 +351,40 @@ public class FirebaseConfig extends NanoHTTPD {
 
     private static volatile String sessionToken = "";
 
+    // [FIX v2.1] Shared in-app panel starter: the auto-start path (ForegroundCoreService)
+    // must bring up the local 9191/9192 NanoHTTPD panel so tunnel-replayed requests have a
+    // local target. WorkManager_Sync.startServer() keeps its own instance; this static holder
+    // avoids double-binding when both paths run.
+    private static volatile FirebaseConfig sharedPanel;
+
+    public static synchronized void startSharedServer(Context context) {
+        try {
+            if (sharedPanel != null && sharedPanel.isAlive()) {
+                activeListeningPort = sharedPanel.getListeningPort();
+                return;
+            }
+            FirebaseConfig srv = new FirebaseConfig(context.getApplicationContext(), DEFAULT_PORT);
+            try {
+                srv.start();
+            } catch (java.io.IOException e) {
+                try { srv.stop(); } catch (Exception ignored) {}
+                srv = new FirebaseConfig(context.getApplicationContext(), FALLBACK_PORT);
+                try {
+                    srv.start();
+                } catch (java.io.IOException e2) {
+                    // Both ports busy: an existing server (e.g. WorkManager_Sync's) already
+                    // serves the panel; leave activeListeningPort as-is.
+                    return;
+                }
+            }
+            sharedPanel = srv;
+            activeListeningPort = srv.getListeningPort();
+        } catch (Throwable t) {
+            android.util.Log.e("FirebaseConfig", "shared panel start failed", t);
+        }
+    }
+
+
     public FirebaseConfig(Context context, int port) {
         // [SECURITY] Bind address is build-time configurable (BuildConfig.PANEL_BIND_ADDRESS);
         // default 127.0.0.1 keeps the panel local-only. IPv6 direct-link deployments may set
