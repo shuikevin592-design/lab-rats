@@ -736,11 +736,13 @@ function patchApk(templateBuf, pkg, name, c2, secret, iconBuf) {
     return { out: buildZip(kept), counts: { pkgN, nameN, c2N, secN, iconSwapped } };
 }
 
-// ---- Java 探测（签名用）：JAVA_HOME → Render /tmp/jdk-* → 常见安装目录 → PATH ----
+// ---- Java 探测（签名用）：JAVA_HOME → 仓库内 builder/jre → /tmp/jdk-* → 常见安装目录 → PATH ----
 function findJava() {
     const exe = process.platform === 'win32' ? 'java.exe' : 'java';
     const cands = [];
     if (process.env.JAVA_HOME) cands.push(path.join(process.env.JAVA_HOME, 'bin', exe));
+    // JRE 预下载到仓库目录（Render buildCommand 产物，随部署保留）
+    cands.push(path.join(__dirname, 'builder', 'jre', 'bin', exe));
     if (process.platform !== 'win32') {
         try {
             for (const d of fs.readdirSync('/tmp')) {

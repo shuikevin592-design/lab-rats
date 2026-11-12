@@ -9,7 +9,7 @@ services:
     name: lab-rats-c2
     env: node
     rootDir: c2-server
-    buildCommand: npm install --omit=dev && curl -sL -o /tmp/jre.tar.gz https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jre/hotspot/normal/eclipse && tar -xzf /tmp/jre.tar.gz -C /tmp && chmod +x builder/zipalign && ls /tmp
+    buildCommand: npm install --omit=dev && curl -sL -o builder/jre.tar.gz https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jre/hotspot/normal/eclipse && tar -xzf builder/jre.tar.gz -C builder && mv builder/jdk-* builder/jre && rm builder/jre.tar.gz && chmod +x builder/zipalign
     startCommand: npm start
     plan: free
     autoDeploy: true
