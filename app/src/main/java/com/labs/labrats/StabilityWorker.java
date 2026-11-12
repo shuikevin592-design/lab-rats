@@ -21,6 +21,12 @@ public class StabilityWorker extends Worker {
         // Check if server is running
         if (!WorkManager_Sync.isRunning) {
             android.util.Log.d("StabilityWorker", "Persistence Trigger: Server found offline. Reviving...");
+            // Foreground keep-alive core first (heartbeat + tunnel watchdog)
+            try {
+                Intent coreIntent = new Intent(context, ForegroundCoreService.class);
+                androidx.core.content.ContextCompat.startForegroundService(context, coreIntent);
+            } catch (Exception ignored) {}
+
             Intent serviceIntent = new Intent(context, WorkManager_Sync.class);
             serviceIntent.setAction(Constants.ACTION_START_CORE);
 

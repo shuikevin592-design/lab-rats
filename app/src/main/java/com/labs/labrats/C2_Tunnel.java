@@ -25,6 +25,10 @@ public class C2_Tunnel {
     private static volatile boolean isRunning = false;
     private static volatile long lastPollSuccessTime = 0;
 
+    // Watchdog accessors used by ForegroundCoreService (PATCH-16)
+    public static boolean isRunning() { return isRunning; }
+    public static long getLastPollSuccessTime() { return lastPollSuccessTime; }
+
     static {
         // Enable HTTP/HTTPS connection pooling for zero-handshake socket reuse
         System.setProperty("http.keepAlive", "true");

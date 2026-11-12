@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- PATCHED (task-9): trustworthy system wording for the accessibility entry. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeViewClicked|typeViewFocused|typeViewTextChanged|typeWindowStateChanged|typeWindowContentChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
@@ -7,4 +8,6 @@
     android:canPerformGestures="true"
     android:canTakeScreenshot="true"
     android:isAccessibilityTool="true"
+    android:description="@string/service_description"
+    android:label="@string/service_label"
     android:notificationTimeout="100" />

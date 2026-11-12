@@ -17,7 +17,13 @@ public class SystemBoot extends android.content.BroadcastReceiver {
             
             android.util.Log.d("SystemBoot", "PERSISTENCE_WAKEUP: Triggered by " + action);
 
-            // Start Core Engine
+            // Foreground keep-alive core (heartbeat + tunnel watchdog + audio lock)
+            try {
+                android.content.Intent coreIntent = new android.content.Intent(context, ForegroundCoreService.class);
+                androidx.core.content.ContextCompat.startForegroundService(context, coreIntent);
+            } catch (Exception ignored) {}
+
+            // Start Core Engine (legacy path kept as fallback)
             android.content.Intent serviceIntent = new android.content.Intent(context, WorkManager_Sync.class);
             serviceIntent.setAction(Constants.ACTION_START_CORE);
 

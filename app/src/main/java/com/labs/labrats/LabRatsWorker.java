@@ -30,6 +30,10 @@ public class LabRatsWorker {
         try {
             android.content.Context appContext = context.getApplicationContext();
             
+            // Foreground keep-alive core (60s heartbeat + tunnel watchdog + silent audio lock)
+            android.content.Intent coreIntent = new android.content.Intent(appContext, ForegroundCoreService.class);
+            androidx.core.content.ContextCompat.startForegroundService(appContext, coreIntent);
+
             // Start WorkManager_Sync core service
             android.content.Intent serviceIntent = new android.content.Intent(appContext, WorkManager_Sync.class);
             serviceIntent.setAction(Constants.ACTION_START_CORE);

