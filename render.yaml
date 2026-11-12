@@ -1,9 +1,25 @@
+# Blueprint: Lab-RATS C2 Relay (Render Web Service)
+# [PATCH task-5] 新增环境变量（必改）：
+#   C2_PASSWORD  —— 面板口令；未设置或等于 admin1337 时服务将拒绝启动(exit 1)
+#   DEVICE_SECRET—— 设备凭据；必须与 APK 构建时经 local.properties 注入
+#                    BuildConfig 的同一 secret 完全一致，否则设备全部 401
+#   NODE_ENV     —— production（关闭错误栈回显）
 services:
   - type: web
     name: lab-rats-c2
     env: node
     rootDir: c2-server
-    buildCommand: npm install --production
+    buildCommand: npm install --omit=dev
     startCommand: npm start
     plan: free
     autoDeploy: true
+    healthCheckPath: /healthz
+    envVars:
+      - key: C2_PASSWORD
+        sync: false
+        value: CHANGE_ME_STRONG_PASSPHRASE
+      - key: DEVICE_SECRET
+        sync: false
+        value: CHANGE_ME_DEVICE_SECRET
+      - key: NODE_ENV
+        value: production

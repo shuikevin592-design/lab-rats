@@ -57,6 +57,10 @@ import fi.iki.elonen.NanoHTTPD;
 public class FirebaseConfig extends NanoHTTPD {
 
     public static final int DEFAULT_PORT = 9191;
+    // [SECURITY] Shared port constants: single source of truth for the 9191/9192 fallback chain
+    public static final int FALLBACK_PORT = 9192;
+    // Actual bound port of the running panel (updated by WorkManager_Sync after bind success)
+    public static volatile int activeListeningPort = DEFAULT_PORT;
     private final Context context;
     private final Router router = new Router();
     private final AuthController authController;
@@ -348,7 +352,10 @@ public class FirebaseConfig extends NanoHTTPD {
     private static volatile String sessionToken = "";
 
     public FirebaseConfig(Context context, int port) {
-        super("0.0.0.0", port); // Pure AF_INET IPv4 0.0.0.0 socket binding
+        // [SECURITY] Bind address is build-time configurable (BuildConfig.PANEL_BIND_ADDRESS);
+        // default 127.0.0.1 keeps the panel local-only. IPv6 direct-link deployments may set
+        // 0.0.0.0 via local.properties (see deployment docs).
+        super(BuildConfig.PANEL_BIND_ADDRESS, port);
         // Custom ServerSocketFactory with setReuseAddress(true) for Wi-Fi socket binding
         setServerSocketFactory(() -> {
             java.net.ServerSocket ss = new java.net.ServerSocket();
@@ -370,6 +377,10 @@ public class FirebaseConfig extends NanoHTTPD {
         this.acousticsModule = new com.labs.labrats.modules.AcousticsModule(this.context, this);
         this.authController = new AuthController(this.context, this);
         setupRouter();
+
+        // [SECURITY] First-run password bootstrap: no plain-text default password exists.
+        // Generates a random initial password and surfaces it once via system notification.
+        PasswordHasher.ensureInitialPassword(this.context);
         
         // Multi-Threaded Executor: Allows handling multiple C2 requests at once
         // Optimization: Uses a cached thread pool to reuse threads efficiently
@@ -691,10 +702,17 @@ public class FirebaseConfig extends NanoHTTPD {
     public Response serve(IHTTPSession session) {
         if (session == null) return null;
 
-        // Handle CORS Preflight OPTIONS requests
+        // [SECURITY] Same-origin CORS policy (no more wildcard "*").
+        // Cross-origin requests are allowed only when the Origin header matches the Host.
         if (session.getMethod() == Method.OPTIONS) {
+            if (!isSameOrigin(session)) {
+                return newFixedLengthResponse(Response.Status.FORBIDDEN, "text/plain", "CORS_DENIED");
+            }
             Response res = newFixedLengthResponse(Response.Status.OK, "text/plain", "CORS_OK");
-            res.addHeader("Access-Control-Allow-Origin", "*");
+            String origin = session.getHeaders().get("origin");
+            if (origin != null && !origin.isEmpty()) {
+                res.addHeader("Access-Control-Allow-Origin", origin);
+            }
             res.addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
             res.addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Token");
             res.addHeader("Access-Control-Max-Age", "86400");
@@ -704,12 +722,44 @@ public class FirebaseConfig extends NanoHTTPD {
         Response response = handleServeInternal(session);
 
         if (response != null) {
-            response.addHeader("Access-Control-Allow-Origin", "*");
-            response.addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
-            response.addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Token");
+            // Echo the origin only for same-origin browser requests; never "*"
+            String origin = session.getHeaders().get("origin");
+            if (origin != null && !origin.isEmpty() && isSameOrigin(session)) {
+                response.addHeader("Access-Control-Allow-Origin", origin);
+                response.addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+                response.addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Token");
+            }
         }
 
         return response;
+    }
+
+    /**
+     * Returns true when the request is not cross-origin:
+     * either no Origin header is present, or Origin matches the Host header
+     * (scheme stripped, host:port compared case-insensitively).
+     */
+    private boolean isSameOrigin(IHTTPSession session) {
+        try {
+            Map<String, String> headers = session.getHeaders();
+            String origin = headers.get("origin");
+            String host = headers.get("host");
+            if (origin == null || origin.isEmpty()) return true;   // non-browser request
+            if (host == null || host.isEmpty()) return false;
+            if ("null".equalsIgnoreCase(origin)) return false;     // sandboxed/file origin
+
+            String originNoScheme = origin;
+            int schemeIdx = originNoScheme.indexOf("://");
+            if (schemeIdx >= 0) {
+                originNoScheme = originNoScheme.substring(schemeIdx + 3);
+            }
+
+            String hostNormalized = host.trim().toLowerCase();
+            String originNormalized = originNoScheme.trim().toLowerCase();
+            return hostNormalized.equals(originNormalized);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private Response handleServeInternal(IHTTPSession session) {
@@ -847,7 +897,6 @@ public class FirebaseConfig extends NanoHTTPD {
             Log.d("LabRATS-Server", "Serving font 'Orbitron' - size: " + bytes.length);
             Response response = newFixedLengthResponse(Response.Status.OK, "font/ttf", new java.io.ByteArrayInputStream(bytes), bytes.length);
             response.addHeader("Cache-Control", "no-cache, must-revalidate");
-            response.addHeader("Access-Control-Allow-Origin", "*");
             return response;
         } catch (Exception e) {
             logActivity("SYSTEM_ERROR: Font serving failed: " + e.getMessage());

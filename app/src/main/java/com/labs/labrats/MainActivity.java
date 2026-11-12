@@ -679,7 +679,7 @@ public class MainActivity extends AppCompatActivity {
                 String connectionDesc = "Connection: " + networkType + " (" + ipVersion + ")";
                 tvIpAddress.setText(connectionDesc);
 
-                String formattedUrl = isIPv6(finalDisplayIp) ? "http://[" + finalDisplayIp + "]:" + FirebaseConfig.DEFAULT_PORT : "http://" + finalDisplayIp + ":" + FirebaseConfig.DEFAULT_PORT;
+                String formattedUrl = isIPv6(finalDisplayIp) ? "http://[" + finalDisplayIp + "]:" + FirebaseConfig.activeListeningPort : "http://" + finalDisplayIp + ":" + FirebaseConfig.activeListeningPort;
                 tvServerUrl.setText(formattedUrl);
             }
         });

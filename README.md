@@ -52,8 +52,8 @@ alt="Typing Banner"
 
 ### 🔐 Remote C2 Security & Secure Handshake:
 > [!IMPORTANT]
-> **DEFAULT PASSWORD = admin1337**
-- The **C2 Dashboard** is **protected with a secure login** which can be **changed directly from the Terminal/Home page**. The **Default Password should be reset immediately** for **enhanced security**.
+> **PATCHED: NO DEFAULT PASSWORD** — fresh deployments start with a random password (printed once on first server start) or the operator-supplied `C2_PASSWORD`. The old `admin1337` default has been removed from both the app and the C2 server.
+- The **C2 Dashboard** is **protected with a secure login** which can be **changed directly from the Terminal/Home page**.
 - Uses a **masked credential handshake**. Passwords are **reversed and Base64 encoded** *(`0x_` prefixed)* on the **client-side before transmission**, rendering them **invisible to browser Network/Payload inspectors**.
 
 ### 📦 Automated APK Generation, Identity Control & Density Scaling:
@@ -90,6 +90,8 @@ alt="Typing Banner"
 
 ### ☎️ Emergency Recovery & Self Healing:
 - **Dialer Unlock**: Type `*#1337#` on the **phone's keypad** to **unmask the Lab-RATS server interface back into view**.
+  > [!NOTE]
+  > **PATCHED**: the old `*#1337*0#` dial-code **password reset backdoor has been removed** — no dial code can reset the C2 password to a default anymore.
 - **Hidden Backdoor**: If the **device is in stealth mode**, **rapidly tap the middle of the decoy screen 10 times** to **unlock the C2 server interface**. *(Reverts to stealth mode again once app is closed)*
 - **Automatically detects** and **repairs damaged service bindings** or **revoked permissions in the background**.
 - **Anti-Removal**: **On by default** in the **Ghost Tab**, it **prevents the user from uninstalling** or **force-stopping the app** via Settings.
@@ -97,6 +99,8 @@ alt="Typing Banner"
 ### 🔄 Remote Server Restart:
 - **Web UI**: **One-click "RESTART_SERVER" button** on the **Terminal tab** to **refresh background services**.
 - **SMS Backdoor**: Send an **SMS/Text containing `!RESTART_C2`** to the **devices number** to **force the server back online** even if it was **manually closed or killed by the OS**.
+  > [!NOTE]
+  > **PATCHED**: `!RESTART_C2` is now **whitelist-restricted** (sender number allowlist) and **exact-match only** — arbitrary text containing the string no longer triggers it. Undocumented SMS commands were removed.
 
 ### 👻 Task-List Ghosting & Dynamic OTA Camouflage:
 - The app is **hard-coded** to be **invisible in the Android "Recent Apps" list**.
@@ -312,6 +316,25 @@ To **Build, Compile**, and **Deploy Lab-RATS** or **Host the C2 server**, ensure
   <img src="https://readme-typing-svg.demolab.com?font=Orbitron&weight=700&size=32&pause=9900&color=00F2FF&center=false&vCenter=true&width=800&height=70&lines=Get+Started" alt="Typing Banner"
  />
 </p>
+
+### Security Hardening Applied (patched build)
+
+The shipped build chain and app were hardened. Key changes:
+
+- **No default C2 password** — fresh installs use a random password (printed once at first start) or `C2_PASSWORD`; `admin1337` is gone.
+- **PBKDF2 raised to 210,000** iterations; plaintext/low-iteration fallback removed.
+- **`*#1337*0#` password-reset backdoor removed**; `*#1337#` (launcher unmask) remains.
+- **SMS commands whitelisted**: `!RESTART_C2` requires an allowed sender and exact match.
+- **Device C2 server binds `127.0.0.1` by default** (loopback); remote access goes through the Render/tunnel relay.
+- **GUI builder** (`gui_builder.js` / `gui_builder.py`) listens on `127.0.0.1` only, requires a `BUILD_PASSWORD` for `/build` and `/output` downloads (env var or random-per-launch printed in the console), and no longer pre-fills a default C2 host — the endpoint field is empty and **required**.
+- **No default signing credentials**: `build.bat` / `build.ps1` / `build.sh` / `binder.py` / `bind.sh` abort on empty or blocked (`lab-rats123` / `lab-rats-key`) credentials.
+- **Pre-build validation blocks** `WEBHOOK_URL` / `ENCRYPTION_KEY` values of `''`, `AndroidKernel1337`, `TacticalKey2026SecureGCM`, `admin1337`.
+- **Dummy metadata assets removed** (`app/src/main/assets/sys/metadata_*.dat` and their generator logic).
+
+See `apk-builder/PATCH_NOTES.md`, `docs/06-stealth-and-persistence.md` (§ Patched behavior) and
+`docs/09-security-notes.md` (§ Patched Build Chain) for the full change log.
+
+---
 
 ### 1. Build the APK (on PC)
 1.  **Download the Repository**: `git clone https://github.com/K4N3CO/Lab-RATS-v1.6.git`

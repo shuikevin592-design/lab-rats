@@ -300,7 +300,9 @@ Confirm check-in first — file, sheet row, or the device's own Terminal tab sho
 http://[2a02:8109:abcd:1234:5678:9abc:def0:1234]:9191/
 ```
 
-Password `admin1337`, then change it on the Terminal tab immediately.
+**PATCHED**: there is no shipped default password. On first start the app generates a random
+16-char initial password and shows it exactly once in a system notification; log in with it and
+change it on the Terminal tab immediately.
 
 **Brackets are mandatory.** `http://2a02:8109:...:9191` parses the last group as a port. Some browsers
 accept the unbracketed form, many don't.

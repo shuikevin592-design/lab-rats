@@ -17,12 +17,14 @@ hit the unlock gesture.
 | --- | --- |
 | Dial `*#1337#` | Unmasks the dashboard |
 | 10 rapid taps, screen center | Unmasks the dashboard (re-arms on close) |
-| SMS `!RESTART_C2` | Restarts the server even if killed |
+| SMS `!RESTART_C2` | Restarts the server even if killed (whitelist + exact match, see below) |
 | Dashboard `RESTART_SERVER` | Restarts the server |
 | Ghost → REPAIR PERMISSIONS | Re-raises revoked permission prompts |
 
 `!RESTART_C2` needs the SMS receiver alive, so it survives a process kill but not a force-stop of
-the package. It also matches on substring — any text containing it triggers.
+the package. **Patched behavior**: the command is now matched against an allowlist of sender numbers
+and requires an exact match of the full command string — arbitrary text containing `!RESTART_C2` no
+longer triggers it (see the patched-behavior section below).
 
 ---
 
@@ -61,9 +63,31 @@ Things a determined analyst finds:
 - The Accessibility service entry in Settings.
 - Persistent notification (can be minimized but not fully removed while the service runs).
 - `adb shell dumpsys activity services` showing the bound socket.
-- The keystore subject `CN=Lab-RATS Developer, O=Lab-RATS.LABS, C=US` — re-sign with your own cert to
-  drop that tell.
+- The keystore subject — the patched builder no longer ships a default cert; it forces you to
+  generate a unique keystore (see `apk-builder/PATCH_NOTES.md`), so the old
+  `CN=Lab-RATS Developer, O=Lab-RATS.LABS, C=US` tell is gone for any patched build.
 
 Play Protect, Knox and McAfee have all shipped signature updates that catch earlier builds. A fresh
 build with a fresh keystore is the only reliable answer; a build that passed last month proves
 nothing.
+
+---
+
+## Patched behavior (v1.6 security patch)
+
+The deployed build chain and app were hardened; the following behaviors were removed or changed.
+Any older doc that describes them as active is superseded by this list.
+
+| Behavior | Status | Notes |
+| --- | --- | --- |
+| Dial `*#1337#` | Kept | Unmask launcher as before. |
+| Dial `*#1337*0#` (password reset) | **Removed** | The local dial-code password reset backdoor is deleted. No dial code can reset the C2 password to a default. |
+| Undocumented SMS commands | **Removed / whitelisted** | Only the documented `!RESTART_C2` remains, restricted to an allowlist of sender numbers and exact-match on the command string. |
+| Default C2 password `admin1337` | **Removed** | Fresh deployments start with a random password (printed on first server start) or the operator-supplied `C2_PASSWORD`; there is no shipped default. |
+| PBKDF2 iterations | **Raised to 210,000** | `PasswordHasher` no longer falls back to plaintext or to 10k iterations. |
+| C2 listening bind `0.0.0.0:9191` | **Changed to loopback by default** | The device server binds `127.0.0.1` unless the operator explicitly enables a public bind; the Render/tunnel path is the default way to reach it remotely. |
+| `assets/sys/metadata_*.dat` dummy files | **Removed** | The random-fill generation was deleted from every builder script and the shipped files were deleted. |
+| GUI builder network exposure | **Loopback + password** | `gui_builder.js` / `gui_builder.py` listen on `127.0.0.1` only, and `POST /build` plus `/output/*` downloads require a `BUILD_PASSWORD` (env var or random-per-launch, printed once in the console). |
+| Builder default keystore creds | **Removed** | `lab-rats123` / `lab-rats-key` fallbacks are gone from `build.bat`, `build.ps1`, `build.sh` and `binder.py`; empty input aborts the script. |
+| Builder default C2/encryption values | **Blocked** | `WEBHOOK_URL` / `ENCRYPTION_KEY` matching `''`, `AndroidKernel1337`, `TacticalKey2026SecureGCM` or `admin1337` abort the build before Gradle runs. |
+| GUI default C2 host | **Removed** | The GUI no longer pre-fills `https://lab-rats-v1-6.onrender.com`; the C2 endpoint field is empty and required (front-end and server-side validation). |

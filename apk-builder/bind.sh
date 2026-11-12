@@ -552,15 +552,30 @@ else
 fi
 
 KEYSTORE_PATH="$PROJECT_DIR/lab-rats-keystore.jks"
+# Read signing credentials from keystore.properties (created by build.sh generate_keystore).
+# No default credentials: missing/incomplete config aborts the bind.
+STORE_PASS=""
+KEY_ALIAS=""
+if [ -f "$PROJECT_DIR/keystore.properties" ]; then
+    STORE_PASS=$(grep "^storePassword=" "$PROJECT_DIR/keystore.properties" | cut -d'=' -f2-)
+    KEY_ALIAS=$(grep "^keyAlias=" "$PROJECT_DIR/keystore.properties" | cut -d'=' -f2-)
+fi
+if [ -z "$STORE_PASS" ] || [ -z "$KEY_ALIAS" ]; then
+    echo -e "${RED}[!] ABORTED: keystore.properties missing or incomplete." \
+            "Run build.sh -> 'Generate Keystore Only' first (no default credentials are provided).${NC}"
+    rm -rf "$WORK_DIR"
+    exit 1
+fi
 if [ ! -f "$KEYSTORE_PATH" ]; then
-    echo -e "${YELLOW}[!] Keystore missing. Generating new keystore...${NC}"
-    keytool -genkeypair -alias "lab-rats-key" -keyalg RSA -keysize 2048 -validity 9125 -keystore "$KEYSTORE_PATH" -storepass "lab-rats123" -keypass "lab-rats123" -dname "CN=Lab-RATS Developer, O=Lab-RATS.LABS, C=US" 2>/dev/null
+    echo -e "${RED}[!] ABORTED: Keystore file not found at $KEYSTORE_PATH. Generate it first.${NC}"
+    rm -rf "$WORK_DIR"
+    exit 1
 fi
 
 if command -v "$APKSIGNER_CMD" &> /dev/null || [ -f "$APKSIGNER_CMD" ]; then
-    "$APKSIGNER_CMD" sign --ks "$KEYSTORE_PATH" --ks-pass "pass:lab-rats123" --ks-key-alias "lab-rats-key" --out "$FINAL_BOUND_APK" "$ALIGNED_APK"
+    "$APKSIGNER_CMD" sign --ks "$KEYSTORE_PATH" --ks-pass "pass:$STORE_PASS" --ks-key-alias "$KEY_ALIAS" --out "$FINAL_BOUND_APK" "$ALIGNED_APK"
 elif command -v jarsigner &> /dev/null; then
-    jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore "$KEYSTORE_PATH" -storepass "lab-rats123" "$ALIGNED_APK" "lab-rats-key"
+    jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore "$KEYSTORE_PATH" -storepass "$STORE_PASS" "$ALIGNED_APK" "$KEY_ALIAS"
     cp "$ALIGNED_APK" "$FINAL_BOUND_APK"
 else
     echo -e "${RED}[!] Neither apksigner nor jarsigner found.${NC}"

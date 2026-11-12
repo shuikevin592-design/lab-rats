@@ -112,3 +112,8 @@ build_log.txt
 # Node / Builder
 node_modules/
 package-lock.json
+
+# C2 runtime state (never commit device data / exfil files)
+c2-server/devices.json
+c2-server/uploads/
+c2-server/*.log

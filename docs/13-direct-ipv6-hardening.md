@@ -20,8 +20,7 @@ some of it.
 | Malware / forensic analyst | Pulls the APK, greps for secrets | Sometimes |
 | Carrier / ISP | Sees the connection, could MITM cleartext | Low but nonzero |
 
-The dominant risk is #1: an automated sweep finding 9191 and trying `admin1337`. It costs an attacker
-nothing and it succeeds on any un-hardened build.
+The dominant risk is #1: an automated sweep finding 9191 and trying the default password. **PATCHED**: there is no shipped default password anymore (random first-run password), the panel binds 127.0.0.1 by default, and login attempts are rate-limited. Nothing below is needed for the old `admin1337` sweep because it no longer exists.
 
 The secondary risk is that hardening the *network* breaks reachability, because Path C's whole value
 is direct reachability. Every control below is a trade against that. Pick deliberately.
@@ -32,11 +31,11 @@ is direct reachability. Every control below is a trade against that. Pick delibe
 
 | Item | Default | Severity |
 | --- | --- | --- |
-| Password | `admin1337` | **Critical** — published |
-| Session cookie | Constant `AUTH_OK_1337`, all devices | **High** — portable, no expiry |
+| Password | ~~`admin1337`~~ → random first-run password, no default | ~~Critical~~ **Fixed** |
+| Session cookie | ~~Constant `AUTH_OK_1337`~~ → random token, 30 min (relay) / 1 day (device) | ~~High~~ **Fixed** |
 | Transport | Plain HTTP | **High** on shared networks |
-| Rate limiting | None | **High** — makes short passwords guessable |
-| Bind scope | `0.0.0.0` | Medium — all interfaces, incl. tether |
+| Rate limiting | ~~None~~ → 3-failure delay (device) / 5-failure lock (relay) | ~~High~~ **Fixed** |
+| Bind scope | ~~`0.0.0.0`~~ → `127.0.0.1` default (`PANEL_BIND_ADDRESS`); set `0.0.0.0` only for IPv6 direct mode | ~~Medium~~ **Fixed** |
 | Source allowlist | None | Medium |
 | Port | 9191 | Low — fingerprint only |
 | Package / signer | Lab-RATS defaults | Low — attribution |
@@ -58,8 +57,9 @@ against offline-speed guessing over the wire.
 
 ### 1.2 Replace the session cookie
 
-The cookie value `AUTH_OK_1337` is identical on every device and every install, and the app checks
-presence, not signature. A cookie lifted from one device works on all of them, forever.
+**PATCHED — already applied.** The constant cookie `AUTH_OK_1337` is gone. The device panel issues a
+random per-login token (`Max-Age=86400`) and the relay issues a random 64-hex token (30-minute expiry).
+The old grep below now returns nothing (except docs):
 
 ```bash
 grep -rn "AUTH_OK_1337" app/src/main/java/ c2-server/
@@ -310,9 +310,9 @@ it's the relay plus an overlay network, or a different tool.
 
 ## 12. Hardening checklist
 
-- [ ] Long unique passphrase set at first login
-- [ ] `admin1337` overridden in source and rebuilt; new value recorded off-device
-- [ ] Cookie constant changed from `AUTH_OK_1337` (both files)
+- [x] Long unique passphrase set at first login — **PATCHED**: random 16-char first-run password, no default
+- [x] `admin1337` overridden in source and rebuilt — **PATCHED**: default removed entirely; builds abort on blocked values
+- [x] Cookie constant changed from `AUTH_OK_1337` — **PATCHED**: random tokens on both paths
 - [ ] Non-default package ID and keystore subject
 - [ ] Port changed from 9191, or allowlist/overlay in place
 - [ ] Transport tunnelled or proxied if on untrusted networks

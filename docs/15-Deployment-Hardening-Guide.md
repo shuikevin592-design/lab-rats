@@ -2,6 +2,10 @@
 
 > **Goal**: Step-by-step technical hardening procedures to eliminate default posture risks and secure C2 transport, authentication, and forensic footprints.
 
+> **PATCHED 2026-11**: the default-password and constant-token items in this guide have been fixed in
+> the codebase (random first-run password, PBKDF2 210k, random session tokens, rate limiting,
+> loopback binding). The procedures below remain as verification steps, not required fixes.
+
 ---
 
 ## 1. 🔑 Default Password Hardening (`admin1337`)

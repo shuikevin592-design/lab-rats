@@ -1,9 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- [SECURITY] Cleartext traffic denied by default; C2 must use HTTPS.
+     Loopback (the app's own 9191/9192 nanohttpd panel) is explicitly whitelisted
+     so the C2 tunnel's local relay can still reach it over http://127.0.0.1. -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true">
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
+            <!-- Only the platform trust store; user-installed CAs are not trusted -->
             <certificates src="system" />
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+        <!-- Local emulator testing only: 10.0.2.2 is the emulator's alias for the host.
+             Remove before any real-world distribution; production C2 must stay HTTPS. -->
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
 </network-security-config>

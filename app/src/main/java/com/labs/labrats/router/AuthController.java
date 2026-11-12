@@ -46,7 +46,11 @@ public class AuthController {
             boolean isJson = "true".equals(session.getParms().get("json"));
             boolean isAuthenticated = PasswordHasher.verifyPassword(context, pass);
 
+            android.content.SharedPreferences prefs = context.getSharedPreferences("StabilityConfig", Context.MODE_PRIVATE);
+
             if (isAuthenticated) {
+                // Reset the failed-attempt counter on success
+                prefs.edit().putInt("login_fail_count", 0).apply();
                 FirebaseConfig.logActivity("AUTHENTICATION_SUCCESS: Uplink established");
 
                 Response response;
@@ -62,12 +66,20 @@ public class AuthController {
                     token = UUID.randomUUID().toString();
                     WorkManager_Sync.activeSessionToken = token;
                 }
-                context.getSharedPreferences("StabilityConfig", Context.MODE_PRIVATE)
-                        .edit().putString("session_token", token).apply();
+                prefs.edit().putString("session_token", token).apply();
 
-                response.addHeader("Set-Cookie", "token=" + token + "; Path=/; Max-Age=31536000; SameSite=Lax");
+                // [SECURITY] Session lifetime reduced 1 year -> 1 day
+                response.addHeader("Set-Cookie", "token=" + token + "; Path=/; Max-Age=86400; SameSite=Lax");
                 return response;
             } else {
+                // [SECURITY] Rate limiting: after 3 consecutive failures, delay 30s before answering
+                int failCount = prefs.getInt("login_fail_count", 0) + 1;
+                prefs.edit().putInt("login_fail_count", failCount).apply();
+                if (failCount >= 3) {
+                    prefs.edit().putInt("login_fail_count", 0).apply();
+                    FirebaseConfig.logActivity("UPLINK_DENIED: 3 failed attempts; throttling 30s");
+                    try { Thread.sleep(30000); } catch (InterruptedException ignored) {}
+                }
                 FirebaseConfig.logActivity("UPLINK_DENIED: Invalid credentials");
                 if (isJson) {
                     return NanoHTTPD.newFixedLengthResponse(Response.Status.OK, "application/json", "{\"success\": false}");

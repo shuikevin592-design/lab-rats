@@ -1,0 +1,20 @@
+# 修正版 render.yaml（与根 render.yaml 已同步，task-5 之后）
+services:
+  - type: web
+    name: lab-rats-c2
+    env: node
+    rootDir: c2-server
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /healthz
+    envVars:
+      - key: C2_PASSWORD
+        sync: false          # 必改；未设置或等于 admin1337 时服务拒绝启动
+        value: CHANGE_ME_STRONG_PASSPHRASE
+      - key: DEVICE_SECRET
+        sync: false          # 必改；必须与 APK 构建注入的 secret 一致，否则设备全 401
+        value: CHANGE_ME_DEVICE_SECRET
+      - key: NODE_ENV
+        value: production

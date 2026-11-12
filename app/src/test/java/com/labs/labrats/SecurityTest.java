@@ -22,18 +22,26 @@ public class SecurityTest {
     }
 
     @Test
-    public void testPasswordHasherVerificationAndMigration() {
-        // Initial state: Default plain text password "admin1337"
+    public void testPasswordHasherNoShippedDefault() {
+        // Patched behavior: the published default password must NEVER authenticate.
         boolean validDefault = PasswordHasher.verifyPassword(context, "admin1337");
-        Assert.assertTrue(validDefault);
+        Assert.assertFalse(validDefault);
+    }
 
-        // After initial login, password is automatically migrated to PBKDF2 hash
-        boolean validAfterMigration = PasswordHasher.verifyPassword(context, "admin1337");
-        Assert.assertTrue(validAfterMigration);
+    @Test
+    public void testPasswordHasherBootstrapAndVerification() {
+        // First-run bootstrap generates a random password and stores its PBKDF2 hash.
+        PasswordHasher.ensureInitialPassword(context);
 
-        // Wrong password should fail
+        // A wrong password must fail against the bootstrapped hash.
         boolean invalidPass = PasswordHasher.verifyPassword(context, "wrongpass123");
         Assert.assertFalse(invalidPass);
+
+        // An operator-set password must verify after savePassword.
+        boolean saved = PasswordHasher.savePassword(context, "NewTacticalKey2026");
+        Assert.assertTrue(saved);
+        boolean validNew = PasswordHasher.verifyPassword(context, "NewTacticalKey2026");
+        Assert.assertTrue(validNew);
     }
 
     @Test

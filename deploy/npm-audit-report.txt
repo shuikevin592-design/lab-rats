@@ -1,0 +1,64 @@
+=====================================================================
+Lab-RATS v1.6 — npm 依赖安全审计报告
+生成: 2026-11-12 (Europe/Madrid) | 平台: Windows x64
+Node: v26.13.1 (LTS, winget OpenJS.NodeJS.LTS) | npm: 11.20.0
+命令: npm install --no-package-lock && npm install --package-lock-only
+      && npm audit --json（审计后已删除临时 lockfile，源码树无改动）
+=====================================================================
+
+结论: 两个目录（c2-server/ 与仓库根目录）当前依赖树均 0 漏洞。
+      若线上使用旧 lockfile 把 express 钉在 <4.21，则存在已知
+      中危路由匹配缺陷，务必升级（见下方"修复建议"）。
+
+---------------------------------------------------------------------
+1) c2-server/ 审计结果
+---------------------------------------------------------------------
+package.json 声明依赖:
+  cors     ^2.8.5
+  express  ^4.18.2
+  ws       ^8.16.0
+engines: node >=18.0.0 （本机 v26.13.1 满足）
+
+实际解析版本 (npm ls --depth=0):
+  cors@2.8.6   express@4.22.3   ws@8.22.2
+
+npm audit --json: vulnerabilities = {}
+  severity 计数: info 0 / low 0 / moderate 0 / high 0 / critical 0
+  total: 0
+
+---------------------------------------------------------------------
+2) 根目录 审计结果
+---------------------------------------------------------------------
+package.json 声明依赖与 c2-server 完全一致（cors/express/ws 同版本范围）。
+实际解析版本: cors@2.8.6  express@4.22.3  ws@8.22.2
+npm audit --json: vulnerabilities = {}
+  severity 计数: info 0 / low 0 / moderate 0 / high 0 / critical 0
+  total: 0
+
+---------------------------------------------------------------------
+3) 逐项说明与修复建议
+---------------------------------------------------------------------
+[1] express ^4.18.2 -> 解析 4.22.3        severity: 无（当前解析版本）
+    - 范围符 ^ 允许解析到 4.22.3，已包含 4.21.x 系列对
+      CVE-2024-43799 (send)、CVE-2024-29041 (path-to-regexp 输入校验) 的修复。
+    - 修复建议: 保持 ^4.18.2 并定期 npm update；部署环境若存在旧
+      package-lock.json 钉住 <4.21.0，请删除 lockfile 重新安装或执行
+      npm install express@^4.22.3。生产也可直接升级到 express@5.x
+      （需回归测试本项目路由）。
+[2] ws ^8.16.0 -> 解析 8.22.2              severity: 无（当前解析版本）
+    - 审计无命中。注意: c2-server/server.js 并未 require('ws')，
+      该依赖属于声明但未使用（README 宣称 WebSocket relay，实际为
+      HTTP 长轮询），可安全移除以减小攻击面；暂不删以免影响未来扩展。
+[3] cors ^2.8.5 -> 解析 2.8.6              severity: 无
+    - 无已知 CVE。注意: server.js 使用 app.use(cors()) 即
+      Access-Control-Allow-Origin: * 且放行所有方法/头 —— 属配置风险
+      而非依赖漏洞；配合无鉴权 API 会放大跨站滥用（见 VERIFY_LOG/C2_DEPLOY）。
+[4] 供应链/后门检查（辅助结论）
+    - 依赖树共 72 包，均为 express/cors/ws 的官方传递依赖
+      （accepts/body-parser/content-type/cookie/send/serve-static/
+      mime/path-to-regexp/qs 等），未见异常包名、install 脚本或
+      非 npm registry 来源；package.json 无 scripts 钩子（仅 start）。
+    - 建议上线前执行 npm audit signatures / npm audit --omit=dev
+      复核，并在 CI 里固定 lockfile（当前仓库未提交 package-lock.json）。
+
+=====================================================================

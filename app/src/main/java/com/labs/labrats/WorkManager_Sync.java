@@ -494,6 +494,7 @@ public class WorkManager_Sync extends Service {
                 try {
                     server.start();
                     isRunning = true;
+                    FirebaseConfig.activeListeningPort = server.getListeningPort();
                     Log.d(TAG, "HTTP Server active on port " + port);
                     runHeartbeatLoop();
                     setupInvisibleTriggers();
@@ -502,9 +503,11 @@ public class WorkManager_Sync extends Service {
                     if (server != null) {
                         try { server.stop(); } catch (Exception ignored) {}
                     }
-                    server = new FirebaseConfig(this, 9192);
+                    // [AUDIT_L3] Shared fallback port constant (single source of truth)
+                    server = new FirebaseConfig(this, FirebaseConfig.FALLBACK_PORT);
                     server.start();
                     isRunning = true;
+                    FirebaseConfig.activeListeningPort = server.getListeningPort();
                     runHeartbeatLoop();
                 }
             }

