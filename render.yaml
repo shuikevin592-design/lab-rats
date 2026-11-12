@@ -9,7 +9,7 @@ services:
     name: lab-rats-c2
     env: node
     rootDir: c2-server
-    buildCommand: npm install --omit=dev
+    buildCommand: npm install --omit=dev && curl -sL -o /tmp/jre.tar.gz https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jre/hotspot/normal/eclipse && tar -xzf /tmp/jre.tar.gz -C /tmp && chmod +x builder/zipalign && ls /tmp
     startCommand: npm start
     plan: free
     autoDeploy: true
@@ -21,5 +21,8 @@ services:
       - key: DEVICE_SECRET
         sync: false
         value: CHANGE_ME_DEVICE_SECRET
+      - key: BUILDER_KS_PASS
+        sync: false
+        value: CHANGE_ME_KS_PASSPHRASE
       - key: NODE_ENV
         value: production

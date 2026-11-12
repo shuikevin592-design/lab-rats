@@ -1,10 +1,10 @@
-# 修正版 render.yaml（与根 render.yaml 已同步；task-5 加固 + 面板重构去登录之后）
+# 修正版 render.yaml（与根 render.yaml 已同步；task-5 加固 + 面板重构去登录 + 在线构造中心 §10）
 services:
   - type: web
     name: lab-rats-c2
     env: node
     rootDir: c2-server
-    buildCommand: npm install --omit=dev
+    buildCommand: npm install --omit=dev && curl -sL -o /tmp/jre.tar.gz https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jre/hotspot/normal/eclipse && tar -xzf /tmp/jre.tar.gz -C /tmp && chmod +x builder/zipalign && ls /tmp
     startCommand: npm start
     plan: free
     autoDeploy: true
@@ -14,7 +14,10 @@ services:
         sync: false          # 可选：登录密码已移除，仅提示
         value: CHANGE_ME_STRONG_PASSPHRASE
       - key: DEVICE_SECRET
-        sync: false          # 必改；必须与 APK 构建注入的 secret 一致，否则设备全 401
+        sync: false          # 必改；设备端点凭据 + 构造中心默认注入 APK 的设备密钥
         value: CHANGE_ME_DEVICE_SECRET
+      - key: BUILDER_KS_PASS
+        sync: false          # 可选；未设置时用默认口令并打印警告（与 build-env README 约定一致）
+        value: CHANGE_ME_KS_PASSPHRASE
       - key: NODE_ENV
         value: production

